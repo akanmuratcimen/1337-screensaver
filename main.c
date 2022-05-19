@@ -15,8 +15,8 @@
 #define FORE_G 226
 #define FORE_B 115
 
-#define DEFAULT_WIDTH 640
-#define DEFAULT_HEIGHT 480
+#define DEFAULT_WIDTH 1200
+#define DEFAULT_HEIGHT 1200
 #define FONTPATH "./arial.ttf"
 #define CHARCOUNT 4
 
@@ -30,7 +30,9 @@ const char *vertexShader =
   "varying vec2 UV;\n"
   "void main()\n"
   "{\n"
-  "  gl_Position = vec4(vertexPosition, 1.0);\n" "  UV = vertexUV;\n" "}\n";
+  "  gl_Position = vec4(vertexPosition, 1.0);\n"
+  "  UV = vertexUV;\n"
+  "}\n";
 
 const char *fragShader =
   "#version 120\n"
@@ -42,7 +44,8 @@ const char *fragShader =
   "{\n"
   "  float textureAlpha = texture2D(myTexture, UV).r;\n"
   "  vec3 finalColor = backColor * (1 - textureAlpha) + foreColor * textureAlpha;\n"
-  "  gl_FragColor = vec4(finalColor, 1.0f);\n" "}\n";
+  "  gl_FragColor = vec4(finalColor, 1.0f);\n"
+  "}\n";
 
 float vertices[] = {
   -1.0f, -1.0f, 0.0f,
@@ -98,7 +101,7 @@ load_char_texture(
 
   int w = bmp.width;
   int h = bmp.rows;
-  int texDim = get_appropriate_power_of_two(max(w, h));
+  int texDim = 64;
 
   unsigned char *buffer = malloc(texDim * texDim);
   memset(buffer, 0, texDim * texDim);
@@ -182,7 +185,7 @@ create_texture_for_chars(
 
   FT_Init_FreeType(&lib);
   FT_New_Face(lib, FONTPATH, 0, &face);
-  FT_Set_Char_Size(face, 0, 256 * 64, 100, 100);
+  FT_Set_Char_Size(face, 0, 32 * 64, 96, 96);
 
   for (int i = 0; i < CHARCOUNT; i++) {
     charTextures[i] = load_char_texture(face, chars[i]);
@@ -246,18 +249,16 @@ setup_gl(
   GLuint * uvVar,
   GLuint * texVar
 ) {
-  GLuint programHandle;
-  GLuint backColorVar, foreColorVar;
+  GLuint programHandle = setup_shaders();
 
-  programHandle = setup_shaders();
   glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
   *vbVar = glGetAttribLocation(programHandle, "vertexPosition");
   *uvVar = glGetAttribLocation(programHandle, "vertexUV");
   *texVar = glGetUniformLocation(programHandle, "myTexture");
 
-  backColorVar = glGetUniformLocation(programHandle, "backColor");
-  foreColorVar = glGetUniformLocation(programHandle, "foreColor");
+  GLuint backColorVar = glGetUniformLocation(programHandle, "backColor");
+  GLuint foreColorVar = glGetUniformLocation(programHandle, "foreColor");
 
   glUniform3f(backColorVar, BACK_R / 255.0f, BACK_G / 255.0f, BACK_B / 255.0f);
   glUniform3f(foreColorVar, FORE_R / 255.0f, FORE_G / 255.0f, FORE_B / 255.0f);
@@ -298,33 +299,20 @@ create_window(
 int
 main(
 ) {
-  int curW = DEFAULT_WIDTH;
-  int curH = DEFAULT_HEIGHT;
-  int lastW = 0;
-  int lastH = 0;
-  int minDim = 0;
-  unsigned int vbHandle, uvHandle, idxHandle;
-  unsigned int vbVar, uvVar, texVar;
-
   GLFWwindow *win = create_window();
 
   glewInit();
   create_texture_for_chars();
+
+  unsigned int vbHandle, uvHandle, idxHandle;
+  unsigned int vbVar, uvVar, texVar;
+
   setup_gl(&vbHandle, &uvHandle, &idxHandle, &vbVar, &uvVar, &texVar);
 
   glEnableVertexAttribArray(vbVar);
   glEnableVertexAttribArray(uvVar);
 
   while (1) {
-    glfwGetWindowSize(win, &curW, &curH);
-
-    if (curW != lastW || curH != lastH) {
-      minDim = min(curW, curH);
-      lastW = curW;
-      lastH = curH;
-      glViewport((curW - minDim) / 2, (curH - minDim) / 2, minDim, minDim);
-    }
-
     glClear(GL_COLOR_BUFFER_BIT);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbHandle);
