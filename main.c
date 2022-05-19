@@ -23,30 +23,6 @@
 unsigned int chars[CHARCOUNT] = { 0x031, 0x033, 0x033, 0x037 };
 GLuint charTextures[CHARCOUNT];
 
-const char *vertexShader =
-  "#version 120\n"
-  "attribute vec3 vertexPosition;\n"
-  "attribute vec2 vertexUV;\n"
-  "varying vec2 UV;\n"
-  "void main()\n"
-  "{\n"
-  "  gl_Position = vec4(vertexPosition, 1.0);\n"
-  "  UV = vertexUV;\n"
-  "}\n";
-
-const char *fragShader =
-  "#version 120\n"
-  "varying vec2 UV;\n"
-  "uniform vec3 backColor;\n"
-  "uniform vec3 foreColor;\n"
-  "uniform sampler2D myTexture;\n"
-  "void main()\n"
-  "{\n"
-  "  float textureAlpha = texture2D(myTexture, UV).r;\n"
-  "  vec3 finalColor = backColor * (1 - textureAlpha) + foreColor * textureAlpha;\n"
-  "  gl_FragColor = vec4(finalColor, 1.0f);\n"
-  "}\n";
-
 float vertices[] = {
   -1.0f, -1.0f, 0.0f,
   -1.0f,  1.0f, 0.0f,
@@ -65,32 +41,6 @@ int vboIdx[] = {
   0, 3, 1, 0, 2, 3
 };
 
-int
-max(
-  int a,
-  int b
-) {
-  return a > b ? a : b;
-}
-
-int
-min(
-  int a,
-  int b
-) {
-  return a < b ? a : b;
-}
-
-int
-get_appropriate_power_of_two(
-  int v
-) {
-  int i;
-
-  for (i = 1; i < v; i *= 2);
-  return i;
-}
-
 GLuint
 load_char_texture(
   FT_Face face,
@@ -101,7 +51,7 @@ load_char_texture(
 
   int w = bmp.width;
   int h = bmp.rows;
-  int texDim = 64;
+  int texDim = 12;
 
   unsigned char *buffer = malloc(texDim * texDim);
   memset(buffer, 0, texDim * texDim);
@@ -130,8 +80,10 @@ load_char_texture(
     buffer
   );
 
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
   glGenerateMipmap(GL_TEXTURE_2D);
 
@@ -168,6 +120,44 @@ show_gl_linking_error(
   free(buffer);
 }
 
+GLuint
+load_shader(
+  char *path,
+  GLenum shaderType
+) {
+  FILE *f = fopen (path, "rb");
+
+  if (!f) {
+    return -1;
+  }
+
+  fseek (f, 0, SEEK_END);
+  long length = ftell(f);
+  fseek (f, 0, SEEK_SET);
+  char *buffer = malloc(length + 1);
+
+  if (buffer) {
+    fread(buffer, 1, length, f);
+  }
+
+  int compilationStatus;
+
+  GLuint shader = glCreateShader(shaderType);
+
+  glShaderSource(shader, 1, (const char **)&buffer, NULL);
+  glCompileShader(shader);
+  glGetShaderiv(shader, GL_COMPILE_STATUS, &compilationStatus);
+
+  if (compilationStatus != GL_TRUE) {
+    fprintf(stderr, "VERTEX SHADER ERROR\n");
+    show_gl_shader_compilation_error(shader);
+  }
+
+  fclose (f);
+
+  return shader;
+}
+
 void
 clean_up(
   GLFWwindow * win
@@ -185,7 +175,7 @@ create_texture_for_chars(
 
   FT_Init_FreeType(&lib);
   FT_New_Face(lib, FONTPATH, 0, &face);
-  FT_Set_Char_Size(face, 0, 32 * 64, 96, 96);
+  FT_Set_Char_Size(face, 0, 12 * 64, 96, 96);
 
   for (int i = 0; i < CHARCOUNT; i++) {
     charTextures[i] = load_char_texture(face, chars[i]);
@@ -200,32 +190,14 @@ setup_shaders(
 ) {
   int compilationStatus;
 
-  GLuint vsHandle = glCreateShader(GL_VERTEX_SHADER);
-
-  glShaderSource(vsHandle, 1, &vertexShader, NULL);
-  glCompileShader(vsHandle);
-  glGetShaderiv(vsHandle, GL_COMPILE_STATUS, &compilationStatus);
-
-  if (compilationStatus != GL_TRUE) {
-    fprintf(stderr, "VERTEX SHADER ERROR\n");
-    show_gl_shader_compilation_error(vsHandle);
-  }
-
-  GLuint fgHandle = glCreateShader(GL_FRAGMENT_SHADER);
-
-  glShaderSource(fgHandle, 1, &fragShader, NULL);
-  glCompileShader(fgHandle);
-  glGetShaderiv(fgHandle, GL_COMPILE_STATUS, &compilationStatus);
-
-  if (compilationStatus != GL_TRUE) {
-    fprintf(stderr, "FRAG SHADER ERROR\n");
-    show_gl_shader_compilation_error(fgHandle);
-  }
+  GLuint vsHandle = load_shader("./vsh.glsl", GL_VERTEX_SHADER);
+  GLuint fgHandle = load_shader("./fsh.glsl", GL_FRAGMENT_SHADER);
 
   GLuint programHandle = glCreateProgram();
 
   glAttachShader(programHandle, vsHandle);
   glAttachShader(programHandle, fgHandle);
+
   glLinkProgram(programHandle);
   glGetProgramiv(programHandle, GL_LINK_STATUS, &compilationStatus);
 
@@ -292,6 +264,7 @@ create_window(
     );
 
   glfwMakeContextCurrent(win);
+  glewInit();
 
   return win;
 }
@@ -301,7 +274,6 @@ main(
 ) {
   GLFWwindow *win = create_window();
 
-  glewInit();
   create_texture_for_chars();
 
   unsigned int vbHandle, uvHandle, idxHandle;
@@ -312,7 +284,7 @@ main(
   glEnableVertexAttribArray(vbVar);
   glEnableVertexAttribArray(uvVar);
 
-  while (1) {
+  while (!glfwWindowShouldClose(win)) {
     glClear(GL_COLOR_BUFFER_BIT);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbHandle);
@@ -331,13 +303,11 @@ main(
 
     glfwSwapBuffers(win);
     glfwPollEvents();
-
-    if (glfwWindowShouldClose(win)) {
-      break;
-    }
   }
 
   clean_up(win);
 
   return 0;
 }
+
+
