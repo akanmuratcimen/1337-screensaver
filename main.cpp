@@ -23,6 +23,11 @@
 #define FORE_G 226
 #define FORE_B 115
 
+#define SCREEN_WIDTH 1200
+#define SCREEN_HEIGHT 900
+
+#define FONT_SIZE 96
+
 GLuint
 compile_shaders(
   void
@@ -35,33 +40,18 @@ struct Character {
   GLuint Advance;
 };
 
-int
-main(
-  int argc,
-  char *argv[]
+std::map<GLchar, Character> characters;
+
+void
+setup_characters(
+  void
 ) {
-  glfwInit();
-
-  GLFWwindow * window = glfwCreateWindow(800, 600, "YEAH", NULL, NULL);
-
-  glfwMakeContextCurrent(window);
-
-  glewInit();
-  glEnable(GL_CULL_FACE);
-  glViewport(0, 0, 800, 600);
-  glClearColor(BACK_R / 255.0f, BACK_G / 255.0f, BACK_B / 255.0f, 1.0f);
-
-  GLuint shader = compile_shaders();
-  glUseProgram(shader);
-
   FT_Library ft;
   FT_Init_FreeType(&ft);
   FT_Face face;
 
-  FT_New_Face(ft, "arial.ttf", 0, &face);
-  FT_Set_Pixel_Sizes(face, 0, 48);
-
-  std::map<GLchar, Character> characters;
+  FT_New_Face(ft, "sora.ttf", 0, &face);
+  FT_Set_Pixel_Sizes(face, 0, FONT_SIZE);
 
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
@@ -110,9 +100,63 @@ main(
 
   FT_Done_Face(face);
   FT_Done_FreeType(ft);
+}
 
-  glm::mat4 projection = glm::ortho(0.0f, 800.0f, 0.0f, 600.0f);
-  glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(projection));
+Character
+render_character(
+  const char c,
+  GLuint *buffer,
+  const float x,
+  const float y
+) {
+  Character ch = characters[c];
+
+  GLfloat xpos = x + ch.Bearing.x;
+  GLfloat ypos = y - (ch.Size.y - ch.Bearing.y);
+  GLfloat w = ch.Size.x;
+  GLfloat h = ch.Size.y;
+
+  GLfloat vertices[6 * 4] = {
+    xpos, ypos + h, 0.0f, 0.0f,
+    xpos, ypos, 0.0f, 1.0f,
+    xpos + w, ypos, 1.0f, 1.0f,
+    xpos, ypos + h, 0.0f, 0.0f,
+    xpos + w, ypos, 1.0f, 1.0f,
+    xpos + w, ypos + h, 1.0f, 0.0f
+  };
+
+  glNamedBufferSubData(*buffer, 0, sizeof(GLfloat) * 6 * 4, vertices);
+  glBindTexture(GL_TEXTURE_2D, ch.TextureID);
+  glDrawArrays(GL_TRIANGLES, 0, 6);
+
+  return ch;
+}
+
+int
+main(
+  int argc,
+  char *argv[]
+) {
+  glfwInit();
+
+  GLFWwindow *window = glfwCreateWindow(
+    SCREEN_WIDTH,
+    SCREEN_HEIGHT,
+    "1337 Screensaver",
+    NULL,
+    NULL
+  );
+
+  glfwMakeContextCurrent(window);
+
+  glewInit();
+  glEnable(GL_CULL_FACE);
+  glClearColor(BACK_R / 255.0f, BACK_G / 255.0f, BACK_B / 255.0f, 1.0f);
+
+  GLuint shader = compile_shaders();
+  glUseProgram(shader);
+
+  setup_characters();
 
   GLuint vao;
 
@@ -132,39 +176,41 @@ main(
   glUniform3f(7, FORE_R / 255.0f, FORE_G / 255.0f, FORE_B / 255.0f);
   glUniform3f(8, BACK_R / 255.0f, BACK_G / 255.0f, BACK_B / 255.0f);
 
-  std::string text("1337");
+  int width = SCREEN_WIDTH;
+  int height = SCREEN_HEIGHT;
 
   while (!glfwWindowShouldClose(window)) {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    GLfloat x = 24.0f;
-    GLfloat y = 200 - 72.0f;
-    GLfloat scale = 1.0f;
+    glfwGetWindowSize(window, &width, &height);
+    glViewport(0, 0, width, height);
 
-    std::string::const_iterator c;
+    glm::mat4 projection =
+      glm::ortho(
+        0.0f,
+        width * 1.0f,
+        0.0f,
+        height * 1.0f
+      );
 
-    for (c = text.begin(); c != text.end(); c++) {
-      Character ch = characters[*c];
+    glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(projection));
 
-      GLfloat xpos = x + ch.Bearing.x * scale;
-      GLfloat ypos = y - (ch.Size.y - ch.Bearing.y) * scale;
-      GLfloat w = ch.Size.x * scale;
-      GLfloat h = ch.Size.y * scale;
+    GLfloat y = -42;
 
-      GLfloat vertices[6 * 4] = {
-        xpos, ypos + h, 0.0f, 0.0f,
-        xpos, ypos, 0.0f, 1.0f,
-        xpos + w, ypos, 1.0f, 1.0f,
-        xpos, ypos + h, 0.0f, 0.0f,
-        xpos + w, ypos, 1.0f, 1.0f,
-        xpos + w, ypos + h, 1.0f, 0.0f
-      };
+    int columns = ceil(width / (FONT_SIZE / 2 * 4)) + 12;
+    int rows = ceil(height / FONT_SIZE) + 3;
 
-      glNamedBufferSubData(buffer, 0, sizeof(GLfloat) * 6 * 4, vertices);
-      glBindTexture(GL_TEXTURE_2D, ch.TextureID);
-      glDrawArrays(GL_TRIANGLES, 0, 6);
+    for (auto i = 1; i <= rows; ++i) {
+      GLfloat x = (-FONT_SIZE * 3) + (i * FONT_SIZE / 2) - FONT_SIZE * 10;
 
-      x += (ch.Advance >> 6) * scale;
+      for (auto j = 0; j <= columns; ++j) {
+        for (auto c : { '1', '3', '3', '7' }) {
+          auto ch = render_character(c, &buffer, x, y);
+          x += ch.Advance >> 6;
+        }
+      }
+
+      y += 96;
     }
 
     glfwSwapBuffers(window);
