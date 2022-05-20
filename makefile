@@ -1,10 +1,10 @@
-CC := gcc
+CC := g++
 
 CFLAGS := -O0 -Wall -lm -lfreetype -lGL -lGLU -pthread \
 	-lglut -ldl -lGLEW -lglfw -lglfw3 -I/usr/include/freetype2
 
 HDRS :=
-SRCS := glad.c main.c
+SRCS := glad.c main.cpp
 OBJS := $(SRCS:.c=.o)
 EXEC := output
 
