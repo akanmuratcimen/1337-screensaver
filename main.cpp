@@ -23,9 +23,6 @@
 #define FORE_G 226
 #define FORE_B 115
 
-#define SCREEN_WIDTH 1200
-#define SCREEN_HEIGHT 900
-
 #define FONT_SIZE 96
 
 GLuint
@@ -139,13 +136,21 @@ main(
 ) {
   glfwInit();
 
+  GLFWmonitor* monitor =  glfwGetPrimaryMonitor();
+  const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
+  float width = mode->width;
+  float height = mode->height;
+
   GLFWwindow *window = glfwCreateWindow(
-    SCREEN_WIDTH,
-    SCREEN_HEIGHT,
+    width,
+    height,
     "1337 Screensaver",
-    NULL,
+    monitor,
     NULL
   );
+
+  glViewport(0, 0, width, height);
 
   glfwMakeContextCurrent(window);
 
@@ -157,6 +162,16 @@ main(
   glUseProgram(shader);
 
   setup_characters();
+
+  glm::mat4 projection =
+    glm::ortho(
+      0.0f,
+      mode->width * 1.0f,
+      0.0f,
+      mode->height * 1.0f
+    );
+
+  glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(projection));
 
   GLuint vao;
 
@@ -176,24 +191,8 @@ main(
   glUniform3f(7, FORE_R / 255.0f, FORE_G / 255.0f, FORE_B / 255.0f);
   glUniform3f(8, BACK_R / 255.0f, BACK_G / 255.0f, BACK_B / 255.0f);
 
-  int width = SCREEN_WIDTH;
-  int height = SCREEN_HEIGHT;
-
   while (!glfwWindowShouldClose(window)) {
     glClear(GL_COLOR_BUFFER_BIT);
-
-    glfwGetWindowSize(window, &width, &height);
-    glViewport(0, 0, width, height);
-
-    glm::mat4 projection =
-      glm::ortho(
-        0.0f,
-        width * 1.0f,
-        0.0f,
-        height * 1.0f
-      );
-
-    glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(projection));
 
     GLfloat y = -42;
 
