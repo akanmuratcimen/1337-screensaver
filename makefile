@@ -1,6 +1,6 @@
 CC := g++
 
-CFLAGS := -O0 -Wall -lm -lfreetype -lGL -lGLU -pthread \
+CFLAGS := -O3 -Wall -lm -lfreetype -lGL -lGLU -pthread \
 	-lglut -ldl -lGLEW -lglfw -lglfw3 -I/usr/include/freetype2
 
 OUTPUT = 1337-screen-saver
@@ -15,6 +15,9 @@ glad.o:
 
 main.o:
 	$(CC) -c main.cpp $(CFLAGS)
+
+run: clean all
+	./$(OUTPUT)
 
 clean:
 	rm -f main.o glad.o $(OUTPUT)

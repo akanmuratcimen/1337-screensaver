@@ -23,8 +23,6 @@
 #define FORE_G 226
 #define FORE_B 115
 
-unsigned int chars[3] = { '1', '3', '7' };
-
 GLuint
 compile_shaders(
   void
@@ -67,7 +65,7 @@ main(
 
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-  for (auto c : chars) {
+  for (auto c : { '1', '3', '7' }) {
     FT_Load_Char(face, c, FT_LOAD_RENDER);
     GLuint texture;
 
@@ -178,22 +176,23 @@ main(
 
 void
 show_gl_shader_compilation_error(
-  GLuint shaderHandle
+  const GLuint shaderHandle
 ) {
   int errorLogLength;
 
   glGetShaderiv(shaderHandle, GL_INFO_LOG_LENGTH, &errorLogLength);
-  char *buffer = (char *)malloc(errorLogLength + 1);
+  char *buffer = new char[errorLogLength + 1];
 
   glGetShaderInfoLog(shaderHandle, errorLogLength + 1, NULL, buffer);
   fprintf(stderr, buffer);
-  free(buffer);
+
+  delete buffer;
 }
 
 GLuint
 load_shader(
-  char *path,
-  GLenum shaderType
+  const char *path,
+  const GLenum shaderType
 ) {
   FILE *f = fopen (path, "rb");
 
@@ -204,7 +203,7 @@ load_shader(
   fseek(f, 0, SEEK_END);
   long length = ftell(f);
   fseek(f, 0, SEEK_SET);
-  char *buffer = (char *) malloc(length + 1);
+  char *buffer = new char[length + 1];
 
   if (buffer) {
     fread(buffer, 1, length, f);
@@ -223,7 +222,9 @@ load_shader(
     show_gl_shader_compilation_error(shader);
   }
 
-  fclose (f);
+  fclose(f);
+
+  delete buffer;
 
   return shader;
 }
