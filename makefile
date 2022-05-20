@@ -3,17 +3,20 @@ CC := g++
 CFLAGS := -O0 -Wall -lm -lfreetype -lGL -lGLU -pthread \
 	-lglut -ldl -lGLEW -lglfw -lglfw3 -I/usr/include/freetype2
 
-HDRS :=
-SRCS := glad.c main.cpp
-OBJS := $(SRCS:.c=.o)
-EXEC := output
+OUTPUT = 1337-screen-saver
 
-all: $(EXEC)
+all: output
 
-$(EXEC): $(OBJS) $(HDRS) makefile
-	$(CC) -o $@ $(OBJS) $(CFLAGS)
+output: main.o glad.o
+	$(CC) -o $(OUTPUT) main.o glad.o $(CFLAGS)
+
+glad.o:
+	$(CC) -c glad.c
+
+main.o:
+	$(CC) -c main.cpp $(CFLAGS)
 
 clean:
-	rm -f $(EXEC) $(OBJS)
+	rm -f main.o glad.o $(OUTPUT)
 
-.PHONY: all clean
+.PHONY: clean

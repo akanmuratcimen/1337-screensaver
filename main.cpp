@@ -23,10 +23,10 @@
 #define FORE_G 226
 #define FORE_B 115
 
-unsigned int chars[3] = { 0x031, 0x033, 0x037 };
+unsigned int chars[3] = { '1', '3', '7' };
 
 GLuint
-CompileShaders(
+compile_shaders(
   void
 );
 
@@ -53,7 +53,7 @@ main(
   glViewport(0, 0, 800, 600);
   glClearColor(BACK_R / 255.0f, BACK_G / 255.0f, BACK_B / 255.0f, 1.0f);
 
-  GLuint shader = CompileShaders();
+  GLuint shader = compile_shaders();
   glUseProgram(shader);
 
   FT_Library ft;
@@ -63,7 +63,7 @@ main(
   FT_New_Face(ft, "arial.ttf", 0, &face);
   FT_Set_Pixel_Sizes(face, 0, 48);
 
-  std::map<GLchar, Character> Characters;
+  std::map<GLchar, Character> characters;
 
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
@@ -107,7 +107,7 @@ main(
       (unsigned int) face->glyph->advance.x
     };
 
-    Characters.insert(std::pair < GLchar, Character > (c, character));
+    characters.insert(std::pair<GLchar, Character>(c, character));
   }
 
   FT_Done_Face(face);
@@ -132,7 +132,7 @@ main(
   glEnableVertexArrayAttrib(vao, 0);
 
   glUniform3f(7, FORE_R / 255.0f, FORE_G / 255.0f, FORE_B / 255.0f);
-  glUniform3f(2, BACK_R / 255.0f, BACK_G / 255.0f, BACK_B / 255.0f);
+  glUniform3f(8, BACK_R / 255.0f, BACK_G / 255.0f, BACK_B / 255.0f);
 
   std::string text("1337");
 
@@ -146,7 +146,7 @@ main(
     std::string::const_iterator c;
 
     for (c = text.begin(); c != text.end(); c++) {
-      Character ch = Characters[*c];
+      Character ch = characters[*c];
 
       GLfloat xpos = x + ch.Bearing.x * scale;
       GLfloat ypos = y - (ch.Size.y - ch.Bearing.y) * scale;
@@ -229,7 +229,7 @@ load_shader(
 }
 
 GLuint
-CompileShaders(
+compile_shaders(
   void
 ) {
   GLuint program = glCreateProgram();

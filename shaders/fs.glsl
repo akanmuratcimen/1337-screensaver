@@ -4,7 +4,7 @@ out vec4 color;
 
 layout (binding = 0) uniform sampler2D text;
 layout (location = 7) uniform vec3 textColor;
-layout (location = 2) uniform vec3 bgColor;
+layout (location = 8) uniform vec3 bgColor;
 
 void main() {
   float textureAlpha = texture(text, TexCoords).r;
