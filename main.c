@@ -20,7 +20,7 @@
 #define FONTPATH "./arial.ttf"
 #define CHARCOUNT 4
 
-unsigned int chars[CHARCOUNT] = { 0x031, 0x033, 0x033, 0x037 };
+unsigned int chars[CHARCOUNT] = { 0x031, 0x033, 0x037 };
 GLuint charTextures[CHARCOUNT];
 
 float vertices[] = {
@@ -49,31 +49,32 @@ load_char_texture(
   FT_Load_Char(face, utf32, FT_LOAD_RENDER);
   FT_Bitmap bmp = face->glyph->bitmap;
 
+  int texture_dimension = 128;
+
+  unsigned char *buffer = malloc(texture_dimension * texture_dimension);
+  memset(buffer, 0, texture_dimension * texture_dimension);
+
   int w = bmp.width;
   int h = bmp.rows;
-  int texDim = 12;
 
-  unsigned char *buffer = malloc(texDim * texDim);
-  memset(buffer, 0, texDim * texDim);
-
-  int x = (texDim - w) / 2;
-  int y = (texDim - h) / 2;
+  int x = 42;
+  int y = 32;
 
   for (int i = 0; i < h; i++) {
-    memcpy(&buffer[texDim * (i + y) + x], &bmp.buffer[w * i], w);
+    memcpy(&buffer[texture_dimension * (i + y) + x], &bmp.buffer[w * i], w);
   }
 
-  GLuint textureHandle;
+  GLuint texture;
 
-  glGenTextures(1, &textureHandle);
-  glBindTexture(GL_TEXTURE_2D, textureHandle);
+  glGenTextures(1, &texture);
+  glBindTexture(GL_TEXTURE_2D, texture);
 
   glTexImage2D(
     GL_TEXTURE_2D,
     0,
     GL_RED,
-    texDim,
-    texDim,
+    texture_dimension,
+    texture_dimension,
     0,
     GL_RED,
     GL_UNSIGNED_BYTE,
@@ -83,11 +84,9 @@ load_char_texture(
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
-  //glGenerateMipmap(GL_TEXTURE_2D);
-
   free(buffer);
 
-  return textureHandle;
+  return texture;
 }
 
 void
@@ -165,7 +164,7 @@ create_texture_for_chars(
 
   FT_Init_FreeType(&lib);
   FT_New_Face(lib, FONTPATH, 0, &face);
-  FT_Set_Char_Size(face, 0, 12 * 64, 96, 96);
+  FT_Set_Pixel_Sizes(face, 90, 90);
 
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
@@ -287,11 +286,40 @@ main(
     glBindBuffer(GL_ARRAY_BUFFER, uvHandle);
     glVertexAttribPointer(uvVar, 2, GL_FLOAT, GL_FALSE, 0, NULL);
 
+
+
+    glViewport(0, DEFAULT_HEIGHT - 128, 128, 128);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, idxHandle);
     glBindTexture(GL_TEXTURE_2D, charTextures[0]);
 
     glUniform1i(texVar, 0);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
+
+
+    glViewport(132, DEFAULT_HEIGHT - 128, 128, 128);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, idxHandle);
+    glBindTexture(GL_TEXTURE_2D, charTextures[1]);
+
+    glUniform1i(texVar, 0);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
+
+
+    glViewport(264, DEFAULT_HEIGHT - 128, 128, 128);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, idxHandle);
+    glBindTexture(GL_TEXTURE_2D, charTextures[1]);
+
+    glUniform1i(texVar, 0);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
+
+
+    glViewport(396, DEFAULT_HEIGHT - 128, 128, 128);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, idxHandle);
+    glBindTexture(GL_TEXTURE_2D, charTextures[2]);
+
+    glUniform1i(texVar, 0);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
+
+
 
     glFlush();
 
