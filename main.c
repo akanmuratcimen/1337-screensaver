@@ -80,12 +80,10 @@ load_char_texture(
     buffer
   );
 
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
-  glGenerateMipmap(GL_TEXTURE_2D);
+  //glGenerateMipmap(GL_TEXTURE_2D);
 
   free(buffer);
 
@@ -159,14 +157,6 @@ load_shader(
 }
 
 void
-clean_up(
-  GLFWwindow * win
-) {
-  glfwDestroyWindow(win);
-  glfwTerminate();
-}
-
-void
 create_texture_for_chars(
   void
 ) {
@@ -177,10 +167,13 @@ create_texture_for_chars(
   FT_New_Face(lib, FONTPATH, 0, &face);
   FT_Set_Char_Size(face, 0, 12 * 64, 96, 96);
 
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
   for (int i = 0; i < CHARCOUNT; i++) {
     charTextures[i] = load_char_texture(face, chars[i]);
   }
 
+  FT_Done_Face(face);
   FT_Done_FreeType(lib);
 }
 
@@ -193,33 +186,34 @@ setup_shaders(
   GLuint vsHandle = load_shader("./vsh.glsl", GL_VERTEX_SHADER);
   GLuint fgHandle = load_shader("./fsh.glsl", GL_FRAGMENT_SHADER);
 
-  GLuint programHandle = glCreateProgram();
+  GLuint program = glCreateProgram();
 
-  glAttachShader(programHandle, vsHandle);
-  glAttachShader(programHandle, fgHandle);
+  glAttachShader(program, vsHandle);
+  glAttachShader(program, fgHandle);
 
-  glLinkProgram(programHandle);
-  glGetProgramiv(programHandle, GL_LINK_STATUS, &compilationStatus);
+  glLinkProgram(program);
+  glGetProgramiv(program, GL_LINK_STATUS, &compilationStatus);
 
   if (compilationStatus != GL_TRUE) {
     fprintf(stderr, "ERROR: while linking shader\n");
-    show_gl_linking_error(programHandle);
+    show_gl_linking_error(program);
+
     return -1;
   }
 
-  glUseProgram(programHandle);
+  glUseProgram(program);
 
-  return programHandle;
+  return program;
 }
 
 void
 setup_gl(
-  GLuint * vbHandle,
-  GLuint * uvHandle,
-  GLuint * idxHandle,
-  GLuint * vbVar,
-  GLuint * uvVar,
-  GLuint * texVar
+  GLuint *vbHandle,
+  GLuint *uvHandle,
+  GLuint *idxHandle,
+  GLuint *vbVar,
+  GLuint *uvVar,
+  GLuint *texVar
 ) {
   GLuint programHandle = setup_shaders();
 
@@ -305,7 +299,8 @@ main(
     glfwPollEvents();
   }
 
-  clean_up(win);
+  glfwDestroyWindow(win);
+  glfwTerminate();
 
   return 0;
 }
