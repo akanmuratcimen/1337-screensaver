@@ -6,18 +6,18 @@ int main(
   const int screenWidth = GetScreenWidth();
   const int screenHeight = GetScreenHeight();
 
-  const Color bg_color = { 12, 12, 245, 255 };
-  const Color font_color = { 5, 226, 115, 255 };
+  const Color bgColor = { 12, 12, 245, 255 };
+  const Color fontColor = { 5, 226, 115, 180 };
 
   InitWindow(screenWidth, screenHeight, "1337 Screensaver");
 
   ToggleFullscreen();
 
-  const char *text = "133713371337133713371337133713371337133713371337133713371337";
+  const char *bgText = "133713371337133713371337133713371337133713371337133713371337";
   Font font = LoadFontEx("sora.ttf", 96, 0, 0);
-
-  Image bg_text_image = ImageTextEx(font, text, 72, 0, font_color);
-  Texture2D background = LoadTextureFromImage(bg_text_image);
+  Image bgTextImage = ImageTextEx(font, bgText, 72, 0, fontColor);
+  Texture2D bgTexture = LoadTextureFromImage(bgTextImage);
+  UnloadImage(bgTextImage);
 
   SetTargetFPS(60);
 
@@ -28,13 +28,13 @@ int main(
   while (!WindowShouldClose()) {
     scrollingBack -= 1.0;
 
-    if (scrollingBack <= -background.width * 2) {
+    if (scrollingBack <= -bgTexture.width * 2) {
       scrollingBack = 0;
     }
 
     BeginDrawing();
 
-      ClearBackground(bg_color);
+      ClearBackground(bgColor);
       
       for (int i = 0; i < 24; i++) {
         const Vector2 bg1Pos = {
@@ -43,12 +43,12 @@ int main(
         };
 
         const Vector2 bg2Pos = {
-          background.width * 2 + scrollingBack - (64 * i),
+          bgTexture.width * 2 + scrollingBack - (64 * i),
           i * line_height - 24
         };
 
         DrawTextureEx(
-          background,
+          bgTexture,
           bg1Pos,
           0.0f,
           2.0f,
@@ -56,7 +56,7 @@ int main(
         );
 
         DrawTextureEx(
-          background,
+          bgTexture,
           bg2Pos,
           0.0f,
           2.0f,
@@ -66,6 +66,9 @@ int main(
 
     EndDrawing();
   }
+
+  UnloadFont(font);
+  UnloadTexture(bgTexture);
 
   CloseWindow();
 
