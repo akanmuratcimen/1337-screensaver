@@ -22,9 +22,9 @@ const Color bgColor = { 12, 12, 245, 255 };
 const Color fontColor = { 5, 226, 115, 255 };
 const int fontSize = 190;
 const float lineHeight = 140.0f;
-const float matchThreshold = 30.0f;
-const int speedMin = 2;
-const int speedMax = 5;
+const float matchThreshold = 40.0f;
+const int speedMin = 10;
+const int speedMax = 40;
 
 int main(
   void
@@ -68,6 +68,7 @@ int main(
 
   int columnHighlightIsEnabled[columnCount];
   int columnHighlightFrameCounter[columnCount];
+  int columnHighlightReEnableFrameCounter[columnCount];
 
   int framesCounter = 0;
   int highlightingEnablesFramesCounter = 0;
@@ -122,6 +123,10 @@ int main(
               continue;
             }
 
+            if (cells[i + 1][n].Position.x > GetScreenWidth()) {
+              continue;
+            }
+
             if (
               abs(
                 cells[i + 1][n].Position.y -
@@ -163,6 +168,10 @@ int main(
               continue;
             }
 
+            if (cells[i + 2][n].Position.x > GetScreenWidth()) {
+              continue;
+            }
+
             if (
               abs(
                 cells[i + 2][n].Position.y -
@@ -201,6 +210,10 @@ int main(
             }
 
             if (cells[i + 3][n].Position.y > GetScreenHeight()) {
+              continue;
+            }
+
+            if (cells[i + 3][n].Position.x > GetScreenWidth()) {
               continue;
             }
 
@@ -275,7 +288,10 @@ int main(
             columnHighlightIsEnabled[i] = 0;
 
             for (int m = 0; m < rowCount; m++) {
-              cells[i][m].IsHighlighted = 1;
+              if (cells[i][m].Highlight == 1) {
+                cells[i][m].IsHighlighted = 1;
+              }
+
               cells[i][m].PausePosition = -1;
             }
           }
@@ -298,7 +314,7 @@ int main(
               );
             };
           } else {
-            cells[i][j].Position.y += columnSpeeds[i];
+            cells[i][j].Position.y += columnSpeeds[i] / 10;
           }
 
           DrawTextEx(
@@ -314,7 +330,7 @@ int main(
 
     EndDrawing();
 
-    if (((framesCounter / 200) % 2) == 1) {
+    if (((framesCounter / 100) % 2) == 1) {
       framesCounter = 0;
 
       for (int i = 0; i < columnCount; i++) {
