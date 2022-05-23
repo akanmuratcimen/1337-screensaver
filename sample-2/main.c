@@ -9,6 +9,7 @@ struct Cell {
   int Column;
   int Row;
   Vector2 Position;
+  float PausePosition;
   int Highlight;
 };
 
@@ -20,7 +21,7 @@ const Color bgColor = { 12, 12, 245, 255 };
 const Color fontColor = { 5, 226, 115, 255 };
 const int fontSize = 190;
 const float lineHeight = 140.0f;
-
+const float matchThreshold = 10.0f;
 const int speedMin = 2;
 const int speedMax = 5;
 
@@ -57,10 +58,13 @@ int main(
       cell.Row = j;
       cell.Position = position;
       cell.Highlight = 0;
+      cell.PausePosition = -1.0f;
 
       cells[i][j] = cell;
     }
   }
+
+  int columnHighlightIsEnabled[columnCount];
 
   int framesCounter = 0;
   int highlightingFramesCounter = 0;
@@ -69,11 +73,9 @@ int main(
     framesCounter++;
     highlightingFramesCounter++;
 
-    float threshhold = 10.0f;
-
     if (highlightingFramesCounter > 50) {
       for (int i = 0; i < columnCount - 4; i++) {
-        if (columnSpeeds[i] < 0.0f) {
+        if (columnHighlightIsEnabled[i] == 1) {
           continue;
         }
 
@@ -82,11 +84,17 @@ int main(
             continue;
           }
 
+          float maxY = cells[i + 0][j].Position.y;
+
           int n1Index = -1;
           int n2Index = -1;
           int n3Index = -1;
 
           for (int n = 0; n < rowCount; n++) {
+            if (columnHighlightIsEnabled[i + 1] == 1) {
+              continue;
+            }
+
             if (cells[i + 1][n].Value[0] != '3') {
               continue;
             }
@@ -103,9 +111,13 @@ int main(
               abs(
                 cells[i + 1][n].Position.y -
                 cells[i + 0][j].Position.y
-              ) > threshhold
+              ) > matchThreshold
             ) {
               continue;
+            }
+
+            if (cells[i + 1][n].Position.y > maxY) {
+              maxY = cells[i + 1][n].Position.y;
             }
 
             n1Index = n;
@@ -116,6 +128,10 @@ int main(
           }
 
           for (int n = 0; n < rowCount; n++) {
+            if (columnHighlightIsEnabled[i + 2] == 1) {
+              continue;
+            }
+
             if (cells[i + 2][n].Value[0] != '3') {
               continue;
             }
@@ -132,9 +148,13 @@ int main(
               abs(
                 cells[i + 2][n].Position.y -
                 cells[i + 0][j].Position.y
-              ) > threshhold
+              ) > matchThreshold
             ) {
               continue;
+            }
+
+            if (cells[i + 2][n].Position.y > maxY) {
+              maxY = cells[i + 2][n].Position.y;
             }
 
             n2Index = n;
@@ -145,6 +165,10 @@ int main(
           }
 
           for (int n = 0; n < rowCount; n++) {
+            if (columnHighlightIsEnabled[i + 3] == 1) {
+              continue;
+            }
+
             if (cells[i + 3][n].Value[0] != '7') {
               continue;
             }
@@ -161,9 +185,13 @@ int main(
               abs(
                 cells[i + 3][n].Position.y -
                 cells[i + 0][j].Position.y
-              ) > threshhold
+              ) > matchThreshold
             ) {
               continue;
+            }
+
+            if (cells[i + 3][n].Position.y > maxY) {
+              maxY = cells[i + 3][n].Position.y;
             }
 
             n3Index = n;
@@ -173,10 +201,40 @@ int main(
             continue;
           }
 
-          columnSpeeds[i + 0] = -1.0f;
-          columnSpeeds[i + 1] = -1.0f;
-          columnSpeeds[i + 2] = -1.0f;
-          columnSpeeds[i + 3] = -1.0f;
+          cells[i + 0][j].Highlight = 1;
+          cells[i + 1][n1Index].Highlight = 1;
+          cells[i + 2][n2Index].Highlight = 1;
+          cells[i + 3][n3Index].Highlight = 1;
+
+          float column1Diff = maxY - cells[i + 0][j].Position.y;
+          float column2Diff = maxY - cells[i + 1][n1Index].Position.y;
+          float column3Diff = maxY - cells[i + 2][n2Index].Position.y;
+          float column4Diff = maxY - cells[i + 3][n3Index].Position.y;
+
+          for (int m = 0; m < rowCount; m++) {
+            cells[i + 0][m].PausePosition =
+              cells[i + 0][m].Position.y + column1Diff;
+          }
+
+          for (int m = 0; m < rowCount; m++) {
+            cells[i + 1][m].PausePosition =
+              cells[i + 1][m].Position.y + column2Diff;
+          }
+
+          for (int m = 0; m < rowCount; m++) {
+            cells[i + 2][m].PausePosition =
+              cells[i + 2][m].Position.y + column3Diff;
+          }
+
+          for (int m = 0; m < rowCount; m++) {
+            cells[i + 3][m].PausePosition =
+              cells[i + 3][m].Position.y + column4Diff;
+          }
+
+          columnHighlightIsEnabled[i + 0] = 1;
+          columnHighlightIsEnabled[i + 1] = 1;
+          columnHighlightIsEnabled[i + 2] = 1;
+          columnHighlightIsEnabled[i + 3] = 1;
         }
       }
     }
@@ -189,7 +247,20 @@ int main(
         for (int j = 0; j < rowCount; j++) {
           struct Cell cell = cells[i][j];
 
-          if (columnSpeeds[i] > 0) {
+          if (
+            columnHighlightIsEnabled[i] == 1 &&
+            cell.Position.y >= cell.PausePosition
+          ) {
+            if (cell.Highlight == 1) {
+              DrawRectangle(
+                cell.Position.x - 8,
+                cell.Position.y + 18,
+                114,
+                146,
+                WHITE
+              );
+            };
+          } else {
             cells[i][j].Position.y += columnSpeeds[i];
           }
 
@@ -210,7 +281,7 @@ int main(
       framesCounter = 0;
 
       for (int i = 0; i < columnCount; i++) {
-        if (columnSpeeds[i] < 0.0f) {
+        if (columnHighlightIsEnabled[i] == 1) {
           continue;
         }
 
