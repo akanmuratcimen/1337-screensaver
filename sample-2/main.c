@@ -11,6 +11,7 @@ struct Cell {
   Vector2 Position;
   float PausePosition;
   int Highlight;
+  int IsHighlighted;
 };
 
 const char* fontFamily = "sora.ttf";
@@ -21,7 +22,7 @@ const Color bgColor = { 12, 12, 245, 255 };
 const Color fontColor = { 5, 226, 115, 255 };
 const int fontSize = 190;
 const float lineHeight = 140.0f;
-const float matchThreshold = 10.0f;
+const float matchThreshold = 30.0f;
 const int speedMin = 2;
 const int speedMax = 5;
 
@@ -58,6 +59,7 @@ int main(
       cell.Row = j;
       cell.Position = position;
       cell.Highlight = 0;
+      cell.IsHighlighted = 0;
       cell.PausePosition = -1.0f;
 
       cells[i][j] = cell;
@@ -65,15 +67,20 @@ int main(
   }
 
   int columnHighlightIsEnabled[columnCount];
+  int columnHighlightFrameCounter[columnCount];
 
   int framesCounter = 0;
-  int highlightingFramesCounter = 0;
+  int highlightingEnablesFramesCounter = 0;
 
   while (!WindowShouldClose()) {
     framesCounter++;
-    highlightingFramesCounter++;
+    highlightingEnablesFramesCounter++;
 
-    if (highlightingFramesCounter > 50) {
+    if (highlightingEnablesFramesCounter > 50) {
+      if (highlightingEnablesFramesCounter > 9999999) {
+        highlightingEnablesFramesCounter = 0;
+      }
+
       for (int i = 0; i < columnCount - 4; i++) {
         if (columnHighlightIsEnabled[i] == 1) {
           continue;
@@ -81,6 +88,10 @@ int main(
 
         for (int j = 0; j < rowCount; j++) {
           if (cells[i + 0][j].Value[0] != '1') {
+            continue;
+          }
+
+          if (cells[i + 0][j].IsHighlighted == 1) {
             continue;
           }
 
@@ -92,6 +103,10 @@ int main(
 
           for (int n = 0; n < rowCount; n++) {
             if (columnHighlightIsEnabled[i + 1] == 1) {
+              continue;
+            }
+
+            if (cells[i + 1][n].IsHighlighted == 1) {
               continue;
             }
 
@@ -132,6 +147,10 @@ int main(
               continue;
             }
 
+            if (cells[i + 2][n].IsHighlighted == 1) {
+              continue;
+            }
+
             if (cells[i + 2][n].Value[0] != '3') {
               continue;
             }
@@ -169,6 +188,10 @@ int main(
               continue;
             }
 
+            if (cells[i + 3][n].IsHighlighted == 1) {
+              continue;
+            }
+
             if (cells[i + 3][n].Value[0] != '7') {
               continue;
             }
@@ -201,11 +224,6 @@ int main(
             continue;
           }
 
-          cells[i + 0][j].Highlight = 1;
-          cells[i + 1][n1Index].Highlight = 1;
-          cells[i + 2][n2Index].Highlight = 1;
-          cells[i + 3][n3Index].Highlight = 1;
-
           float column1Diff = maxY - cells[i + 0][j].Position.y;
           float column2Diff = maxY - cells[i + 1][n1Index].Position.y;
           float column3Diff = maxY - cells[i + 2][n2Index].Position.y;
@@ -231,6 +249,11 @@ int main(
               cells[i + 3][m].Position.y + column4Diff;
           }
 
+          cells[i + 0][j].Highlight = 1;
+          cells[i + 1][n1Index].Highlight = 1;
+          cells[i + 2][n2Index].Highlight = 1;
+          cells[i + 3][n3Index].Highlight = 1;
+
           columnHighlightIsEnabled[i + 0] = 1;
           columnHighlightIsEnabled[i + 1] = 1;
           columnHighlightIsEnabled[i + 2] = 1;
@@ -244,6 +267,20 @@ int main(
       ClearBackground(bgColor);
 
       for (int i = 0; i < columnCount; i++) {
+        if (columnHighlightIsEnabled[i] == 1) {
+          columnHighlightFrameCounter[i]++;
+
+          if (columnHighlightFrameCounter[i] > 60) {
+            columnHighlightFrameCounter[i] = 0;
+            columnHighlightIsEnabled[i] = 0;
+
+            for (int m = 0; m < rowCount; m++) {
+              cells[i][m].IsHighlighted = 1;
+              cells[i][m].PausePosition = -1;
+            }
+          }
+        }
+
         for (int j = 0; j < rowCount; j++) {
           struct Cell cell = cells[i][j];
 
@@ -251,7 +288,7 @@ int main(
             columnHighlightIsEnabled[i] == 1 &&
             cell.Position.y >= cell.PausePosition
           ) {
-            if (cell.Highlight == 1) {
+            if (cell.Highlight == 1 && cell.IsHighlighted == 0) {
               DrawRectangle(
                 cell.Position.x - 8,
                 cell.Position.y + 18,
@@ -302,6 +339,8 @@ int main(
         for (int j = 0; j < rowCount; j++) {
           if (cells[i][j].Position.y > GetScreenHeight()) {
             lastPosition[i] = lastPosition[i] - lineHeight;
+            cells[i][j].IsHighlighted = 0;
+            cells[i][j].Highlight = 0;
             cells[i][j].Position.y = lastPosition[i];
             cells[i][j].Value = chars[GetRandomValue(0, 2)];
           }
