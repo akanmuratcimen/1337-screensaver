@@ -5,8 +5,9 @@
 
 #include "raylib.h"
 
-#define FULLSCREEN 1
+#define FULLSCREEN 0
 #define FONT_FAMILY "sora.ttf"
+#define WINDOW_TITLE "1337 Screensaver"
 
 #define BG_COLOR CLITERAL(Color){ 12, 12, 245, 255 }
 #define FONT_COLOR CLITERAL(Color){ 5, 226, 115, 255 }
@@ -17,7 +18,7 @@
 #define MAX(x, y) (x > y ? x : y)
 #define MIN(x, y) (x < y ? x : y)
 
-struct Cell {
+struct cell {
   const char *value;
   int column;
   int row;
@@ -27,7 +28,7 @@ struct Cell {
   bool is_highlighted;
 };
 
-struct Column {
+struct column {
   float speed;
   bool is_highlighting;
   int highlighting_frame_counter;
@@ -44,16 +45,16 @@ const float match_threshold = 40.0f;
 const int speed_min = 20;
 const int speed_max = 40;
 
-struct Cell cells[COLUMN_COUNT][ROW_COUNT];
-struct Column columns[COLUMN_COUNT];
+struct cell cells[COLUMN_COUNT][ROW_COUNT];
+struct column columns[COLUMN_COUNT];
 
 void
 initialize_columns(
   void
 ) {
-  for (int i = 0; i < COLUMN_COUNT; i++) {
-    columns[i].speed = GetRandomValue(speed_min, speed_max);
-    columns[i].top_position = 9999999.9f;
+  for (int ci = 0; ci < COLUMN_COUNT; ci++) {
+    columns[ci].speed = GetRandomValue(speed_min, speed_max);
+    columns[ci].top_position = 9999999.9f;
   }
 }
 
@@ -61,31 +62,31 @@ void
 generate_random_cells(
   void
 ) {
-  for (int i = 0; i < COLUMN_COUNT; i++) {
-    for (int j = 0; j < ROW_COUNT; j++) {
+  for (int ci = 0; ci < COLUMN_COUNT; ci++) {
+    for (int ri = 0; ri < ROW_COUNT; ri++) {
       const Vector2 position = {
-        i * 110.0f - 40.0f,
-        j * line_height - 1000.0f
+        ci * 110.0f - 40.0f,
+        ri * line_height - 1000.0f
       };
 
-      struct Cell cell;
+      struct cell cell;
 
       cell.value = chars[GetRandomValue(0, 2)];
-      cell.column = i;
-      cell.row = j;
+      cell.column = ci;
+      cell.row = ri;
       cell.position = position;
       cell.is_highlighting = false;
       cell.is_highlighted = false;
       cell.pause_position = -1.0f;
 
-      cells[i][j] = cell;
+      cells[ci][ri] = cell;
     }
   }
 }
 
 bool
 is_cell_available_to_highlight(
-  const struct Cell cell
+  const struct cell cell
 ) {
   if (columns[cell.column].is_highlighting) {
     return false;
@@ -111,9 +112,9 @@ is_cell_available_to_highlight(
 }
 
 bool
-is_cell_match(
-  const struct Cell source,
-  const struct Cell target,
+is_cells_match(
+  const struct cell source,
+  const struct cell target,
   const char expected_char
 ) {
   if (target.value[0] != expected_char) {
@@ -138,7 +139,7 @@ int main(
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
   }
 
-  InitWindow(GetScreenWidth(), GetScreenHeight(), "1337 Screensaver");
+  InitWindow(GetScreenWidth(), GetScreenHeight(), WINDOW_TITLE);
 
   const Font font = LoadFontEx(FONT_FAMILY, font_size, 0, 0);
 
@@ -184,7 +185,7 @@ int main(
 
         int r1i = 0;
         for (; r1i < ROW_COUNT; r1i++) {
-          if (is_cell_match(cells[ci][r0i], cells[ci + 1][r1i], '3')) {
+          if (is_cells_match(cells[ci][r0i], cells[ci + 1][r1i], '3')) {
             break;
           }
         }
@@ -195,7 +196,7 @@ int main(
 
         int r2i = 0;
         for (; r2i < ROW_COUNT; r2i++) {
-          if (is_cell_match(cells[ci][r0i], cells[ci + 2][r2i], '3')) {
+          if (is_cells_match(cells[ci][r0i], cells[ci + 2][r2i], '3')) {
             break;
           }
         }
@@ -206,7 +207,7 @@ int main(
 
         int r3i = 0;
         for (; r3i < ROW_COUNT; r3i++) {
-          if (is_cell_match(cells[ci][r0i], cells[ci + 3][r3i], '7')) {
+          if (is_cells_match(cells[ci][r0i], cells[ci + 3][r3i], '7')) {
             break;
           }
         }
@@ -284,7 +285,7 @@ int main(
         }
 
         for (int ri = 0; ri < ROW_COUNT; ri++) {
-          struct Cell cell = cells[ci][ri];
+          struct cell cell = cells[ci][ri];
 
           if (
             columns[ci].is_highlighting &&
