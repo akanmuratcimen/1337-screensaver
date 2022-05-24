@@ -50,11 +50,12 @@ struct Cell cells[COLUMN_COUNT][ROW_COUNT];
 struct Column columns[COLUMN_COUNT];
 
 void
-SetRandomColumnSpeeds(
+InitializeColumns(
   void
 ) {
   for (int i = 0; i < COLUMN_COUNT; i++) {
     columns[i].Speed = GetRandomValue(speedMin, speedMax);
+    columns[i].TopPosition = FLT_MAX;
   }
 }
 
@@ -149,14 +150,14 @@ int main(
 
   SetTargetFPS(30);
 
-  SetRandomColumnSpeeds();
+  InitializeColumns();
   GenerateRandomCells();
 
-  int framesCounter = 0;
+  int refreshColumnsFrameCounter = 0;
   int higlightingActivationFrameCounter = 0;
 
   while (!WindowShouldClose()) {
-    framesCounter++;
+    refreshColumnsFrameCounter++;
     higlightingActivationFrameCounter++;
 
     if (higlightingActivationFrameCounter > 50) {
@@ -164,23 +165,23 @@ int main(
         higlightingActivationFrameCounter = 0;
       }
 
-      for (int coli = 0; coli < COLUMN_COUNT - 4; coli++) {
-        if (columns[coli].Highlight == 1) {
+      for (int ci = 0; ci < COLUMN_COUNT - 4; ci++) {
+        if (columns[ci].Highlight == 1) {
           continue;
         }
 
         for (int r0i = 0; r0i < ROW_COUNT; r0i++) {
-          if (cells[coli][r0i].Value[0] != '1') {
+          if (cells[ci][r0i].Value[0] != '1') {
             continue;
           }
 
-          if (!IsCellAvailableForHighligthing(cells[coli][r0i])) {
+          if (!IsCellAvailableForHighligthing(cells[ci][r0i])) {
             continue;
           }
 
           int r1i = 0;
           for (; r1i < ROW_COUNT; r1i++) {
-            if (IsCellsMatch(cells[coli][r0i], cells[coli + 1][r1i], '3')) {
+            if (IsCellsMatch(cells[ci][r0i], cells[ci + 1][r1i], '3')) {
               break;
             }
           }
@@ -191,7 +192,7 @@ int main(
 
           int r2i = 0;
           for (; r2i < ROW_COUNT; r2i++) {
-            if (IsCellsMatch(cells[coli][r0i], cells[coli + 2][r2i], '3')) {
+            if (IsCellsMatch(cells[ci][r0i], cells[ci + 2][r2i], '3')) {
               break;
             }
           }
@@ -202,7 +203,7 @@ int main(
 
           int r3i = 0;
           for (; r3i < ROW_COUNT; r3i++) {
-            if (IsCellsMatch(cells[coli][r0i], cells[coli + 3][r3i], '7')) {
+            if (IsCellsMatch(cells[ci][r0i], cells[ci + 3][r3i], '7')) {
               break;
             }
           }
@@ -212,47 +213,47 @@ int main(
           }
 
           float maxY = MAX(
-            cells[coli + 0][r0i].Position.y, MAX(
-              cells[coli + 1][r1i].Position.y, MAX(
-                cells[coli + 2][r2i].Position.y,
-                cells[coli + 3][r3i].Position.y
+            cells[ci + 0][r0i].Position.y, MAX(
+              cells[ci + 1][r1i].Position.y, MAX(
+                cells[ci + 2][r2i].Position.y,
+                cells[ci + 3][r3i].Position.y
               )
             )
           );
 
-          for (int m = 0; m < ROW_COUNT; m++) {
-            cells[coli + 0][m].PausePosition =
-              cells[coli + 0][m].Position.y + maxY -
-                cells[coli + 0][r0i].Position.y;
+          for (int ri = 0; ri < ROW_COUNT; ri++) {
+            cells[ci + 0][ri].PausePosition =
+              cells[ci + 0][ri].Position.y + maxY -
+                cells[ci + 0][r0i].Position.y;
           }
 
-          for (int m = 0; m < ROW_COUNT; m++) {
-            cells[coli + 1][m].PausePosition =
-              cells[coli + 1][m].Position.y + maxY -
-                cells[coli + 1][r1i].Position.y;
+          for (int ri = 0; ri < ROW_COUNT; ri++) {
+            cells[ci + 1][ri].PausePosition =
+              cells[ci + 1][ri].Position.y + maxY -
+                cells[ci + 1][r1i].Position.y;
           }
 
-          for (int m = 0; m < ROW_COUNT; m++) {
-            cells[coli + 2][m].PausePosition =
-              cells[coli + 2][m].Position.y + maxY -
-                cells[coli + 2][r2i].Position.y;
+          for (int ri = 0; ri < ROW_COUNT; ri++) {
+            cells[ci + 2][ri].PausePosition =
+              cells[ci + 2][ri].Position.y + maxY -
+                cells[ci + 2][r2i].Position.y;
           }
 
-          for (int m = 0; m < ROW_COUNT; m++) {
-            cells[coli + 3][m].PausePosition =
-              cells[coli + 3][m].Position.y + maxY -
-                cells[coli + 3][r3i].Position.y;
+          for (int ri = 0; ri < ROW_COUNT; ri++) {
+            cells[ci + 3][ri].PausePosition =
+              cells[ci + 3][ri].Position.y + maxY -
+                cells[ci + 3][r3i].Position.y;
           }
 
-          cells[coli + 0][r0i].Highlight = 1;
-          cells[coli + 1][r1i].Highlight = 1;
-          cells[coli + 2][r2i].Highlight = 1;
-          cells[coli + 3][r3i].Highlight = 1;
+          cells[ci + 0][r0i].Highlight = 1;
+          cells[ci + 1][r1i].Highlight = 1;
+          cells[ci + 2][r2i].Highlight = 1;
+          cells[ci + 3][r3i].Highlight = 1;
 
-          columns[coli + 0].Highlight = 1;
-          columns[coli + 1].Highlight = 1;
-          columns[coli + 2].Highlight = 1;
-          columns[coli + 3].Highlight = 1;
+          columns[ci + 0].Highlight = 1;
+          columns[ci + 1].Highlight = 1;
+          columns[ci + 2].Highlight = 1;
+          columns[ci + 3].Highlight = 1;
         }
       }
     }
@@ -261,31 +262,28 @@ int main(
 
       ClearBackground(BG_COLOR);
 
-      for (int i = 0; i < COLUMN_COUNT; i++) {
-        if (columns[i].Highlight == 1) {
-          columns[i].HighlightFrameCounter++;
+      for (int ci = 0; ci < COLUMN_COUNT; ci++) {
+        if (columns[ci].Highlight == 1) {
+          columns[ci].HighlightFrameCounter++;
 
-          if (columns[i].HighlightFrameCounter > 60) {
-            columns[i].HighlightFrameCounter = 0;
-            columns[i].Highlight = 0;
+          if (columns[ci].HighlightFrameCounter > 60) {
+            columns[ci].HighlightFrameCounter = 0;
+            columns[ci].Highlight = 0;
 
-            for (int m = 0; m < ROW_COUNT; m++) {
-              if (cells[i][m].Highlight == 1) {
-                cells[i][m].IsHighlighted = 1;
+            for (int ri = 0; ri < ROW_COUNT; ri++) {
+              if (cells[ci][ri].Highlight == 1) {
+                cells[ci][ri].IsHighlighted = 1;
               }
 
-              cells[i][m].PausePosition = -1;
+              cells[ci][ri].PausePosition = -1;
             }
           }
         }
 
-        for (int j = 0; j < ROW_COUNT; j++) {
-          struct Cell cell = cells[i][j];
+        for (int ri = 0; ri < ROW_COUNT; ri++) {
+          struct Cell cell = cells[ci][ri];
 
-          if (
-            columns[i].Highlight == 1 &&
-            cell.Position.y >= cell.PausePosition
-          ) {
+          if (columns[ci].Highlight == 1 && cell.Position.y >= cell.PausePosition) {
             if (cell.Highlight == 1 && cell.IsHighlighted == 0) {
               DrawRectangle(
                 cell.Position.x - 8,
@@ -296,7 +294,7 @@ int main(
               );
             };
           } else {
-            cells[i][j].Position.y += columns[i].Speed / 10;
+            cells[ci][ri].Position.y += columns[ci].Speed / 10;
           }
 
           DrawTextEx(
@@ -312,32 +310,31 @@ int main(
 
     EndDrawing();
 
-    if (((framesCounter / 100) % 2) == 1) {
-      framesCounter = 0;
+    if (((refreshColumnsFrameCounter / 100) % 2) == 1) {
+      refreshColumnsFrameCounter = 0;
 
-      SetRandomColumnSpeeds();
+      InitializeColumns();
 
-      for (int j = 0; j < COLUMN_COUNT; j++) {
-        columns[j].TopPosition = FLT_MAX;
-      }
-
-      for (int i = 0; i < COLUMN_COUNT; i++) {
-        if (columns[i].Highlight == 1) {
+      for (int ci = 0; ci < COLUMN_COUNT; ci++) {
+        if (columns[ci].Highlight == 1) {
           continue;
         }
 
-        for (int j = 0; j < ROW_COUNT; j++) {
-          columns[i].TopPosition = MIN(columns[i].TopPosition, cells[i][j].Position.y);
+        for (int ri = 0; ri < ROW_COUNT; ri++) {
+          columns[ci].TopPosition = MIN(
+            columns[ci].TopPosition,
+            cells[ci][ri].Position.y
+          );
         }
 
-        for (int j = 0; j < ROW_COUNT; j++) {
-          if (cells[i][j].Position.y > GetScreenHeight()) {
-            columns[i].TopPosition = columns[i].TopPosition - lineHeight;
+        for (int ri = 0; ri < ROW_COUNT; ri++) {
+          if (cells[ci][ri].Position.y > GetScreenHeight()) {
+            columns[ci].TopPosition = columns[ci].TopPosition - lineHeight;
 
-            cells[i][j].IsHighlighted = 0;
-            cells[i][j].Highlight = 0;
-            cells[i][j].Position.y = columns[i].TopPosition;
-            cells[i][j].Value = chars[GetRandomValue(0, 2)];
+            cells[ci][ri].IsHighlighted = 0;
+            cells[ci][ri].Highlight = 0;
+            cells[ci][ri].Position.y = columns[ci].TopPosition;
+            cells[ci][ri].Value = chars[GetRandomValue(0, 2)];
           }
         }
       }
