@@ -1,5 +1,12 @@
+CC := gcc
+CFLAGS := -Wall -std=gnu11 -pedantic -O3
+LIBS := -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
+OUTPUT := 1337-screensaver
+
+SRC := main.c
+
 all:
-	gcc main.c -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -O0 -o 1337-screensaver
+	$(CC) $(SRC) $(CFLAGS) $(LIBS) -o $(OUTPUT)
 
 run:
-	./1337-screensaver
+	./$(OUTPUT)

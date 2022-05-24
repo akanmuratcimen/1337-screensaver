@@ -1,8 +1,23 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <math.h>
+#include <limits.h>
+#include <float.h>
 
 #include "raylib.h"
+
+#define FULLSCREEN 1
+#define FONT_FAMILY "sora.ttf"
+
+#define BG_COLOR CLITERAL(Color){ 12, 12, 245, 255 }
+#define FONT_COLOR CLITERAL(Color){ 5, 226, 115, 255 }
+
+#define COLUMN_COUNT 40
+#define ROW_COUNT 30
+
+#define MAX(x, y) (x > y ? x : y)
+#define MIN(x, y) (x < y ? x : y)
 
 struct Cell {
   const char *Value;
@@ -14,39 +29,41 @@ struct Cell {
   int IsHighlighted;
 };
 
-const char* fontFamily = "sora.ttf";
-const int columnCount = 40;
-const int rowCount = 40;
-const char* chars[] = { "1", "3", "7" };
-const Color bgColor = { 12, 12, 245, 255 };
-const Color fontColor = { 5, 226, 115, 255 };
+struct Column {
+  float Speed;
+  int Highlight;
+  int HighlightFrameCounter;
+  float TopPosition;
+};
+
+const char *chars[] = { "1", "3", "7" };
+
 const int fontSize = 190;
 const float lineHeight = 140.0f;
+
 const float matchThreshold = 40.0f;
-const int speedMin = 10;
+
+const int speedMin = 20;
 const int speedMax = 40;
 
-int main(
+struct Cell cells[COLUMN_COUNT][ROW_COUNT];
+struct Column columns[COLUMN_COUNT];
+
+void
+SetRandomColumnSpeeds(
   void
 ) {
-  //SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-  InitWindow(GetScreenWidth(), GetScreenHeight(), "1337 Screensaver");
-
-  const Font font = LoadFontEx(fontFamily, fontSize, 0, 0);
-
-  ToggleFullscreen();
-  SetTargetFPS(30);
-
-  float columnSpeeds[columnCount];
-
-  for (int i = 0; i < columnCount; i++) {
-    columnSpeeds[i] = GetRandomValue(speedMin, speedMax) * 1.0f;
+  for (int i = 0; i < COLUMN_COUNT; i++) {
+    columns[i].Speed = GetRandomValue(speedMin, speedMax);
   }
+}
 
-  struct Cell cells[rowCount][columnCount];
-
-  for (int i = 0; i < columnCount; i++) {
-    for (int j = 0; j < rowCount; j++) {
+void
+GenerateRandomCells(
+  void
+) {
+  for (int i = 0; i < COLUMN_COUNT; i++) {
+    for (int j = 0; j < ROW_COUNT; j++) {
       const Vector2 position = {
         i * 110.0f - 40.0f,
         j * lineHeight - 1000.0f
@@ -65,229 +82,194 @@ int main(
       cells[i][j] = cell;
     }
   }
+}
 
-  int columnHighlightIsEnabled[columnCount];
-  int columnHighlightFrameCounter[columnCount];
-  int columnHighlightReEnableFrameCounter[columnCount];
+bool
+IsCellAvailableForHighligthing(
+  const struct Cell cell
+) {
+  if (columns[cell.Column].Highlight == 1) {
+    return false;
+  }
+
+  if (cell.IsHighlighted == 1) {
+    return false;
+  }
+
+  if (cell.Position.y < 0) {
+    return false;
+  }
+
+  if (cell.Position.y > GetScreenHeight()) {
+    return false;
+  }
+
+  if (cell.Position.x > GetScreenWidth()) {
+    return false;
+  }
+
+  return true;
+}
+
+bool
+IsCellsMatch(
+  const struct Cell source,
+  const struct Cell target,
+  const char expectedChar
+) {
+  if (target.Value[0] != expectedChar) {
+    return false;
+  }
+
+  if (!IsCellAvailableForHighligthing(target)) {
+    return false;
+  }
+
+  if (abs(target.Position.y - source.Position.y) > matchThreshold) {
+    return false;
+  }
+
+  return true;
+}
+
+int main(
+  void
+) {
+  if (!FULLSCREEN) {
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+  }
+
+  InitWindow(GetScreenWidth(), GetScreenHeight(), "1337 Screensaver");
+
+  const Font font = LoadFontEx(FONT_FAMILY, fontSize, 0, 0);
+
+  if (FULLSCREEN) {
+    ToggleFullscreen();
+  }
+
+  SetTargetFPS(30);
+
+  SetRandomColumnSpeeds();
+  GenerateRandomCells();
 
   int framesCounter = 0;
-  int highlightingEnablesFramesCounter = 0;
+  int higlightingActivationFrameCounter = 0;
 
   while (!WindowShouldClose()) {
     framesCounter++;
-    highlightingEnablesFramesCounter++;
+    higlightingActivationFrameCounter++;
 
-    if (highlightingEnablesFramesCounter > 50) {
-      if (highlightingEnablesFramesCounter > 9999999) {
-        highlightingEnablesFramesCounter = 0;
+    if (higlightingActivationFrameCounter > 50) {
+      if (higlightingActivationFrameCounter >= INT_MAX) {
+        higlightingActivationFrameCounter = 0;
       }
 
-      for (int i = 0; i < columnCount - 4; i++) {
-        if (columnHighlightIsEnabled[i] == 1) {
+      for (int coli = 0; coli < COLUMN_COUNT - 4; coli++) {
+        if (columns[coli].Highlight == 1) {
           continue;
         }
 
-        for (int j = 0; j < rowCount; j++) {
-          if (cells[i + 0][j].Value[0] != '1') {
+        for (int r0i = 0; r0i < ROW_COUNT; r0i++) {
+          if (cells[coli][r0i].Value[0] != '1') {
             continue;
           }
 
-          if (cells[i + 0][j].IsHighlighted == 1) {
+          if (!IsCellAvailableForHighligthing(cells[coli][r0i])) {
             continue;
           }
 
-          float maxY = cells[i + 0][j].Position.y;
-
-          int n1Index = -1;
-          int n2Index = -1;
-          int n3Index = -1;
-
-          for (int n = 0; n < rowCount; n++) {
-            if (columnHighlightIsEnabled[i + 1] == 1) {
-              continue;
+          int r1i = 0;
+          for (; r1i < ROW_COUNT; r1i++) {
+            if (IsCellsMatch(cells[coli][r0i], cells[coli + 1][r1i], '3')) {
+              break;
             }
-
-            if (cells[i + 1][n].IsHighlighted == 1) {
-              continue;
-            }
-
-            if (cells[i + 1][n].Value[0] != '3') {
-              continue;
-            }
-
-            if (cells[i + 1][n].Position.y < 0) {
-              continue;
-            }
-
-            if (cells[i + 1][n].Position.y > GetScreenHeight()) {
-              continue;
-            }
-
-            if (cells[i + 1][n].Position.x > GetScreenWidth()) {
-              continue;
-            }
-
-            if (
-              abs(
-                cells[i + 1][n].Position.y -
-                cells[i + 0][j].Position.y
-              ) > matchThreshold
-            ) {
-              continue;
-            }
-
-            if (cells[i + 1][n].Position.y > maxY) {
-              maxY = cells[i + 1][n].Position.y;
-            }
-
-            n1Index = n;
           }
 
-          if (n1Index == -1) {
+          if (r1i == ROW_COUNT) {
             continue;
           }
 
-          for (int n = 0; n < rowCount; n++) {
-            if (columnHighlightIsEnabled[i + 2] == 1) {
-              continue;
+          int r2i = 0;
+          for (; r2i < ROW_COUNT; r2i++) {
+            if (IsCellsMatch(cells[coli][r0i], cells[coli + 2][r2i], '3')) {
+              break;
             }
-
-            if (cells[i + 2][n].IsHighlighted == 1) {
-              continue;
-            }
-
-            if (cells[i + 2][n].Value[0] != '3') {
-              continue;
-            }
-
-            if (cells[i + 2][n].Position.y < 0) {
-              continue;
-            }
-
-            if (cells[i + 2][n].Position.y > GetScreenHeight()) {
-              continue;
-            }
-
-            if (cells[i + 2][n].Position.x > GetScreenWidth()) {
-              continue;
-            }
-
-            if (
-              abs(
-                cells[i + 2][n].Position.y -
-                cells[i + 0][j].Position.y
-              ) > matchThreshold
-            ) {
-              continue;
-            }
-
-            if (cells[i + 2][n].Position.y > maxY) {
-              maxY = cells[i + 2][n].Position.y;
-            }
-
-            n2Index = n;
           }
 
-          if (n2Index == -1) {
+          if (r2i == ROW_COUNT) {
             continue;
           }
 
-          for (int n = 0; n < rowCount; n++) {
-            if (columnHighlightIsEnabled[i + 3] == 1) {
-              continue;
+          int r3i = 0;
+          for (; r3i < ROW_COUNT; r3i++) {
+            if (IsCellsMatch(cells[coli][r0i], cells[coli + 3][r3i], '7')) {
+              break;
             }
-
-            if (cells[i + 3][n].IsHighlighted == 1) {
-              continue;
-            }
-
-            if (cells[i + 3][n].Value[0] != '7') {
-              continue;
-            }
-
-            if (cells[i + 3][n].Position.y < 0) {
-              continue;
-            }
-
-            if (cells[i + 3][n].Position.y > GetScreenHeight()) {
-              continue;
-            }
-
-            if (cells[i + 3][n].Position.x > GetScreenWidth()) {
-              continue;
-            }
-
-            if (
-              abs(
-                cells[i + 3][n].Position.y -
-                cells[i + 0][j].Position.y
-              ) > matchThreshold
-            ) {
-              continue;
-            }
-
-            if (cells[i + 3][n].Position.y > maxY) {
-              maxY = cells[i + 3][n].Position.y;
-            }
-
-            n3Index = n;
           }
 
-          if (n3Index == -1) {
+          if (r3i == ROW_COUNT) {
             continue;
           }
 
-          float column1Diff = maxY - cells[i + 0][j].Position.y;
-          float column2Diff = maxY - cells[i + 1][n1Index].Position.y;
-          float column3Diff = maxY - cells[i + 2][n2Index].Position.y;
-          float column4Diff = maxY - cells[i + 3][n3Index].Position.y;
+          float maxY = MAX(
+            cells[coli + 0][r0i].Position.y, MAX(
+              cells[coli + 1][r1i].Position.y, MAX(
+                cells[coli + 2][r2i].Position.y,
+                cells[coli + 3][r3i].Position.y
+              )
+            )
+          );
 
-          for (int m = 0; m < rowCount; m++) {
-            cells[i + 0][m].PausePosition =
-              cells[i + 0][m].Position.y + column1Diff;
+          for (int m = 0; m < ROW_COUNT; m++) {
+            cells[coli + 0][m].PausePosition =
+              cells[coli + 0][m].Position.y + maxY -
+                cells[coli + 0][r0i].Position.y;
           }
 
-          for (int m = 0; m < rowCount; m++) {
-            cells[i + 1][m].PausePosition =
-              cells[i + 1][m].Position.y + column2Diff;
+          for (int m = 0; m < ROW_COUNT; m++) {
+            cells[coli + 1][m].PausePosition =
+              cells[coli + 1][m].Position.y + maxY -
+                cells[coli + 1][r1i].Position.y;
           }
 
-          for (int m = 0; m < rowCount; m++) {
-            cells[i + 2][m].PausePosition =
-              cells[i + 2][m].Position.y + column3Diff;
+          for (int m = 0; m < ROW_COUNT; m++) {
+            cells[coli + 2][m].PausePosition =
+              cells[coli + 2][m].Position.y + maxY -
+                cells[coli + 2][r2i].Position.y;
           }
 
-          for (int m = 0; m < rowCount; m++) {
-            cells[i + 3][m].PausePosition =
-              cells[i + 3][m].Position.y + column4Diff;
+          for (int m = 0; m < ROW_COUNT; m++) {
+            cells[coli + 3][m].PausePosition =
+              cells[coli + 3][m].Position.y + maxY -
+                cells[coli + 3][r3i].Position.y;
           }
 
-          cells[i + 0][j].Highlight = 1;
-          cells[i + 1][n1Index].Highlight = 1;
-          cells[i + 2][n2Index].Highlight = 1;
-          cells[i + 3][n3Index].Highlight = 1;
+          cells[coli + 0][r0i].Highlight = 1;
+          cells[coli + 1][r1i].Highlight = 1;
+          cells[coli + 2][r2i].Highlight = 1;
+          cells[coli + 3][r3i].Highlight = 1;
 
-          columnHighlightIsEnabled[i + 0] = 1;
-          columnHighlightIsEnabled[i + 1] = 1;
-          columnHighlightIsEnabled[i + 2] = 1;
-          columnHighlightIsEnabled[i + 3] = 1;
+          columns[coli + 0].Highlight = 1;
+          columns[coli + 1].Highlight = 1;
+          columns[coli + 2].Highlight = 1;
+          columns[coli + 3].Highlight = 1;
         }
       }
     }
 
     BeginDrawing();
 
-      ClearBackground(bgColor);
+      ClearBackground(BG_COLOR);
 
-      for (int i = 0; i < columnCount; i++) {
-        if (columnHighlightIsEnabled[i] == 1) {
-          columnHighlightFrameCounter[i]++;
+      for (int i = 0; i < COLUMN_COUNT; i++) {
+        if (columns[i].Highlight == 1) {
+          columns[i].HighlightFrameCounter++;
 
-          if (columnHighlightFrameCounter[i] > 60) {
-            columnHighlightFrameCounter[i] = 0;
-            columnHighlightIsEnabled[i] = 0;
+          if (columns[i].HighlightFrameCounter > 60) {
+            columns[i].HighlightFrameCounter = 0;
+            columns[i].Highlight = 0;
 
-            for (int m = 0; m < rowCount; m++) {
+            for (int m = 0; m < ROW_COUNT; m++) {
               if (cells[i][m].Highlight == 1) {
                 cells[i][m].IsHighlighted = 1;
               }
@@ -297,11 +279,11 @@ int main(
           }
         }
 
-        for (int j = 0; j < rowCount; j++) {
+        for (int j = 0; j < ROW_COUNT; j++) {
           struct Cell cell = cells[i][j];
 
           if (
-            columnHighlightIsEnabled[i] == 1 &&
+            columns[i].Highlight == 1 &&
             cell.Position.y >= cell.PausePosition
           ) {
             if (cell.Highlight == 1 && cell.IsHighlighted == 0) {
@@ -314,7 +296,7 @@ int main(
               );
             };
           } else {
-            cells[i][j].Position.y += columnSpeeds[i] / 10;
+            cells[i][j].Position.y += columns[i].Speed / 10;
           }
 
           DrawTextEx(
@@ -323,7 +305,7 @@ int main(
             cell.Position,
             fontSize,
             0,
-            fontColor
+            FONT_COLOR
           );
         }
       }
@@ -333,31 +315,28 @@ int main(
     if (((framesCounter / 100) % 2) == 1) {
       framesCounter = 0;
 
-      for (int i = 0; i < columnCount; i++) {
-        if (columnHighlightIsEnabled[i] == 1) {
+      SetRandomColumnSpeeds();
+
+      for (int j = 0; j < COLUMN_COUNT; j++) {
+        columns[j].TopPosition = FLT_MAX;
+      }
+
+      for (int i = 0; i < COLUMN_COUNT; i++) {
+        if (columns[i].Highlight == 1) {
           continue;
         }
 
-        columnSpeeds[i] = GetRandomValue(speedMin, speedMax);
-
-        float lastPosition[columnCount];
-
-        for (int j = 0; j < columnCount; j++) {
-          lastPosition[j] = 99999999.0f;
+        for (int j = 0; j < ROW_COUNT; j++) {
+          columns[i].TopPosition = MIN(columns[i].TopPosition, cells[i][j].Position.y);
         }
 
-        for (int j = 0; j < rowCount; j++) {
-          if (cells[i][j].Position.y < lastPosition[i]) {
-            lastPosition[i] = cells[i][j].Position.y;
-          }
-        }
-
-        for (int j = 0; j < rowCount; j++) {
+        for (int j = 0; j < ROW_COUNT; j++) {
           if (cells[i][j].Position.y > GetScreenHeight()) {
-            lastPosition[i] = lastPosition[i] - lineHeight;
+            columns[i].TopPosition = columns[i].TopPosition - lineHeight;
+
             cells[i][j].IsHighlighted = 0;
             cells[i][j].Highlight = 0;
-            cells[i][j].Position.y = lastPosition[i];
+            cells[i][j].Position.y = columns[i].TopPosition;
             cells[i][j].Value = chars[GetRandomValue(0, 2)];
           }
         }
