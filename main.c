@@ -2,8 +2,6 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <math.h>
-#include <limits.h>
-#include <float.h>
 
 #include "raylib.h"
 
@@ -24,50 +22,50 @@ struct Cell {
   int column;
   int row;
   Vector2 position;
-  float pausePosition;
-  int highlight;
-  int isHighlighted;
+  float pause_position;
+  bool is_highlighting;
+  bool is_highlighted;
 };
 
 struct Column {
   float speed;
-  int highlight;
-  int highlightFrameCounter;
-  float topPosition;
+  bool is_highlighting;
+  int highlighting_frame_counter;
+  float top_position;
 };
 
 const char *chars[] = { "1", "3", "7" };
 
-const int fontSize = 190;
-const float lineHeight = 140.0f;
+const int font_size = 190;
+const float line_height = 140.0f;
 
-const float matchThreshold = 40.0f;
+const float match_threshold = 40.0f;
 
-const int speedMin = 20;
-const int speedMax = 40;
+const int speed_min = 20;
+const int speed_max = 40;
 
 struct Cell cells[COLUMN_COUNT][ROW_COUNT];
 struct Column columns[COLUMN_COUNT];
 
 void
-InitializeColumns(
+initialize_columns(
   void
 ) {
   for (int i = 0; i < COLUMN_COUNT; i++) {
-    columns[i].speed = GetRandomValue(speedMin, speedMax);
-    columns[i].topPosition = FLT_MAX;
+    columns[i].speed = GetRandomValue(speed_min, speed_max);
+    columns[i].top_position = 9999999.9f;
   }
 }
 
 void
-GenerateRandomCells(
+generate_random_cells(
   void
 ) {
   for (int i = 0; i < COLUMN_COUNT; i++) {
     for (int j = 0; j < ROW_COUNT; j++) {
       const Vector2 position = {
         i * 110.0f - 40.0f,
-        j * lineHeight - 1000.0f
+        j * line_height - 1000.0f
       };
 
       struct Cell cell;
@@ -76,9 +74,9 @@ GenerateRandomCells(
       cell.column = i;
       cell.row = j;
       cell.position = position;
-      cell.highlight = 0;
-      cell.isHighlighted = 0;
-      cell.pausePosition = -1.0f;
+      cell.is_highlighting = false;
+      cell.is_highlighted = false;
+      cell.pause_position = -1.0f;
 
       cells[i][j] = cell;
     }
@@ -86,14 +84,14 @@ GenerateRandomCells(
 }
 
 bool
-IsCellAvailableForHighligthing(
+is_cell_available_to_highlight(
   const struct Cell cell
 ) {
-  if (columns[cell.column].highlight == 1) {
+  if (columns[cell.column].is_highlighting) {
     return false;
   }
 
-  if (cell.isHighlighted == 1) {
+  if (cell.is_highlighted) {
     return false;
   }
 
@@ -113,20 +111,20 @@ IsCellAvailableForHighligthing(
 }
 
 bool
-IsCellsMatch(
+is_cell_match(
   const struct Cell source,
   const struct Cell target,
-  const char expectedChar
+  const char expected_char
 ) {
-  if (target.value[0] != expectedChar) {
+  if (target.value[0] != expected_char) {
     return false;
   }
 
-  if (!IsCellAvailableForHighligthing(target)) {
+  if (!is_cell_available_to_highlight(target)) {
     return false;
   }
 
-  if (abs(target.position.y - source.position.y) > matchThreshold) {
+  if (abs(target.position.y - source.position.y) > match_threshold) {
     return false;
   }
 
@@ -142,7 +140,7 @@ int main(
 
   InitWindow(GetScreenWidth(), GetScreenHeight(), "1337 Screensaver");
 
-  const Font font = LoadFontEx(FONT_FAMILY, fontSize, 0, 0);
+  const Font font = LoadFontEx(FONT_FAMILY, font_size, 0, 0);
 
   if (FULLSCREEN) {
     ToggleFullscreen();
@@ -150,132 +148,137 @@ int main(
 
   SetTargetFPS(30);
 
-  InitializeColumns();
-  GenerateRandomCells();
+  initialize_columns();
+  generate_random_cells();
 
-  int refreshColumnsFrameCounter = 0;
-  int higlightingActivationFrameCounter = 0;
+  int refresh_columns_frame_counter = 0;
+  int higlighting_activation_frame_counter = 0;
+
+  bool warmup = false;
 
   while (!WindowShouldClose()) {
-    refreshColumnsFrameCounter++;
-    higlightingActivationFrameCounter++;
+    refresh_columns_frame_counter++;
+    higlighting_activation_frame_counter++;
 
-    if (higlightingActivationFrameCounter > 50) {
-      if (higlightingActivationFrameCounter >= INT_MAX) {
-        higlightingActivationFrameCounter = 0;
+    if (!warmup && higlighting_activation_frame_counter > 50) {
+      warmup = true;
+    }
+
+    if (!warmup) {
+      goto draw;
+    }
+
+    for (int ci = 0; ci < COLUMN_COUNT - 4; ci++) {
+      if (columns[ci].is_highlighting) {
+        continue;
       }
 
-      for (int ci = 0; ci < COLUMN_COUNT - 4; ci++) {
-        if (columns[ci].highlight == 1) {
+      for (int r0i = 0; r0i < ROW_COUNT; r0i++) {
+        if (cells[ci][r0i].value[0] != '1') {
           continue;
         }
 
-        for (int r0i = 0; r0i < ROW_COUNT; r0i++) {
-          if (cells[ci][r0i].value[0] != '1') {
-            continue;
-          }
-
-          if (!IsCellAvailableForHighligthing(cells[ci][r0i])) {
-            continue;
-          }
-
-          int r1i = 0;
-          for (; r1i < ROW_COUNT; r1i++) {
-            if (IsCellsMatch(cells[ci][r0i], cells[ci + 1][r1i], '3')) {
-              break;
-            }
-          }
-
-          if (r1i == ROW_COUNT) {
-            continue;
-          }
-
-          int r2i = 0;
-          for (; r2i < ROW_COUNT; r2i++) {
-            if (IsCellsMatch(cells[ci][r0i], cells[ci + 2][r2i], '3')) {
-              break;
-            }
-          }
-
-          if (r2i == ROW_COUNT) {
-            continue;
-          }
-
-          int r3i = 0;
-          for (; r3i < ROW_COUNT; r3i++) {
-            if (IsCellsMatch(cells[ci][r0i], cells[ci + 3][r3i], '7')) {
-              break;
-            }
-          }
-
-          if (r3i == ROW_COUNT) {
-            continue;
-          }
-
-          float maxY = MAX(
-            cells[ci + 0][r0i].position.y, MAX(
-              cells[ci + 1][r1i].position.y, MAX(
-                cells[ci + 2][r2i].position.y,
-                cells[ci + 3][r3i].position.y
-              )
-            )
-          );
-
-          for (int ri = 0; ri < ROW_COUNT; ri++) {
-            cells[ci + 0][ri].pausePosition =
-              cells[ci + 0][ri].position.y + maxY -
-                cells[ci + 0][r0i].position.y;
-          }
-
-          for (int ri = 0; ri < ROW_COUNT; ri++) {
-            cells[ci + 1][ri].pausePosition =
-              cells[ci + 1][ri].position.y + maxY -
-                cells[ci + 1][r1i].position.y;
-          }
-
-          for (int ri = 0; ri < ROW_COUNT; ri++) {
-            cells[ci + 2][ri].pausePosition =
-              cells[ci + 2][ri].position.y + maxY -
-                cells[ci + 2][r2i].position.y;
-          }
-
-          for (int ri = 0; ri < ROW_COUNT; ri++) {
-            cells[ci + 3][ri].pausePosition =
-              cells[ci + 3][ri].position.y + maxY -
-                cells[ci + 3][r3i].position.y;
-          }
-
-          cells[ci + 0][r0i].highlight = 1;
-          cells[ci + 1][r1i].highlight = 1;
-          cells[ci + 2][r2i].highlight = 1;
-          cells[ci + 3][r3i].highlight = 1;
-
-          columns[ci + 0].highlight = 1;
-          columns[ci + 1].highlight = 1;
-          columns[ci + 2].highlight = 1;
-          columns[ci + 3].highlight = 1;
+        if (!is_cell_available_to_highlight(cells[ci][r0i])) {
+          continue;
         }
+
+        int r1i = 0;
+        for (; r1i < ROW_COUNT; r1i++) {
+          if (is_cell_match(cells[ci][r0i], cells[ci + 1][r1i], '3')) {
+            break;
+          }
+        }
+
+        if (r1i == ROW_COUNT) {
+          continue;
+        }
+
+        int r2i = 0;
+        for (; r2i < ROW_COUNT; r2i++) {
+          if (is_cell_match(cells[ci][r0i], cells[ci + 2][r2i], '3')) {
+            break;
+          }
+        }
+
+        if (r2i == ROW_COUNT) {
+          continue;
+        }
+
+        int r3i = 0;
+        for (; r3i < ROW_COUNT; r3i++) {
+          if (is_cell_match(cells[ci][r0i], cells[ci + 3][r3i], '7')) {
+            break;
+          }
+        }
+
+        if (r3i == ROW_COUNT) {
+          continue;
+        }
+
+        float maxY = MAX(
+          cells[ci + 0][r0i].position.y, MAX(
+            cells[ci + 1][r1i].position.y, MAX(
+              cells[ci + 2][r2i].position.y,
+              cells[ci + 3][r3i].position.y
+            )
+          )
+        );
+
+        for (int ri = 0; ri < ROW_COUNT; ri++) {
+          cells[ci + 0][ri].pause_position =
+            cells[ci + 0][ri].position.y + maxY -
+              cells[ci + 0][r0i].position.y;
+        }
+
+        for (int ri = 0; ri < ROW_COUNT; ri++) {
+          cells[ci + 1][ri].pause_position =
+            cells[ci + 1][ri].position.y + maxY -
+              cells[ci + 1][r1i].position.y;
+        }
+
+        for (int ri = 0; ri < ROW_COUNT; ri++) {
+          cells[ci + 2][ri].pause_position =
+            cells[ci + 2][ri].position.y + maxY -
+              cells[ci + 2][r2i].position.y;
+        }
+
+        for (int ri = 0; ri < ROW_COUNT; ri++) {
+          cells[ci + 3][ri].pause_position =
+            cells[ci + 3][ri].position.y + maxY -
+              cells[ci + 3][r3i].position.y;
+        }
+
+        cells[ci + 0][r0i].is_highlighting = 1;
+        cells[ci + 1][r1i].is_highlighting = 1;
+        cells[ci + 2][r2i].is_highlighting = 1;
+        cells[ci + 3][r3i].is_highlighting = 1;
+
+        columns[ci + 0].is_highlighting = 1;
+        columns[ci + 1].is_highlighting = 1;
+        columns[ci + 2].is_highlighting = 1;
+        columns[ci + 3].is_highlighting = 1;
       }
     }
 
+  draw:
     BeginDrawing();
 
       ClearBackground(BG_COLOR);
 
       for (int ci = 0; ci < COLUMN_COUNT; ci++) {
-        if (columns[ci].highlight == 1) {
-          columns[ci].highlightFrameCounter++;
+        if (columns[ci].is_highlighting) {
+          columns[ci].highlighting_frame_counter++;
 
-          if (columns[ci].highlightFrameCounter > 60) {
-            columns[ci].highlightFrameCounter = 0;
-            columns[ci].highlight = 0;
+          if (columns[ci].highlighting_frame_counter > 60) {
+            columns[ci].highlighting_frame_counter = 0;
+            columns[ci].is_highlighting = false;
 
             for (int ri = 0; ri < ROW_COUNT; ri++) {
-              if (cells[ci][ri].highlight == 1) {
-                cells[ci][ri].isHighlighted = 1;
+              if (cells[ci][ri].is_highlighting) {
+                cells[ci][ri].is_highlighted = true;
               }
 
-              cells[ci][ri].pausePosition = -1;
+              cells[ci][ri].pause_position = -1;
             }
           }
         }
@@ -283,8 +286,11 @@ int main(
         for (int ri = 0; ri < ROW_COUNT; ri++) {
           struct Cell cell = cells[ci][ri];
 
-          if (columns[ci].highlight == 1 && cell.position.y >= cell.pausePosition) {
-            if (cell.highlight == 1 && cell.isHighlighted == 0) {
+          if (
+            columns[ci].is_highlighting &&
+            cell.position.y >= cell.pause_position
+          ) {
+            if (cell.is_highlighting && !cell.is_highlighted) {
               DrawRectangle(
                 cell.position.x - 8,
                 cell.position.y + 18,
@@ -301,7 +307,7 @@ int main(
             font,
             cell.value,
             cell.position,
-            fontSize,
+            font_size,
             0,
             FONT_COLOR
           );
@@ -310,30 +316,30 @@ int main(
 
     EndDrawing();
 
-    if (((refreshColumnsFrameCounter / 100) % 2) == 1) {
-      refreshColumnsFrameCounter = 0;
+    if (((refresh_columns_frame_counter / 100) % 2) == 1) {
+      refresh_columns_frame_counter = 0;
 
-      InitializeColumns();
+      initialize_columns();
 
       for (int ci = 0; ci < COLUMN_COUNT; ci++) {
-        if (columns[ci].highlight == 1) {
+        if (columns[ci].is_highlighting) {
           continue;
         }
 
         for (int ri = 0; ri < ROW_COUNT; ri++) {
-          columns[ci].topPosition = MIN(
-            columns[ci].topPosition,
+          columns[ci].top_position = MIN(
+            columns[ci].top_position,
             cells[ci][ri].position.y
           );
         }
 
         for (int ri = 0; ri < ROW_COUNT; ri++) {
           if (cells[ci][ri].position.y > GetScreenHeight()) {
-            columns[ci].topPosition = columns[ci].topPosition - lineHeight;
+            columns[ci].top_position = columns[ci].top_position - line_height;
 
-            cells[ci][ri].isHighlighted = 0;
-            cells[ci][ri].highlight = 0;
-            cells[ci][ri].position.y = columns[ci].topPosition;
+            cells[ci][ri].is_highlighted = false;
+            cells[ci][ri].is_highlighting = false;
+            cells[ci][ri].position.y = columns[ci].top_position;
             cells[ci][ri].value = chars[GetRandomValue(0, 2)];
           }
         }
