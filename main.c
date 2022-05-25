@@ -249,15 +249,15 @@ int main(
               cells[ci + 3][r3i].position.y;
         }
 
-        cells[ci + 0][r0i].is_highlighting = 1;
-        cells[ci + 1][r1i].is_highlighting = 1;
-        cells[ci + 2][r2i].is_highlighting = 1;
-        cells[ci + 3][r3i].is_highlighting = 1;
+        cells[ci + 0][r0i].is_highlighting = true;
+        cells[ci + 1][r1i].is_highlighting = true;
+        cells[ci + 2][r2i].is_highlighting = true;
+        cells[ci + 3][r3i].is_highlighting = true;
 
-        columns[ci + 0].is_highlighting = 1;
-        columns[ci + 1].is_highlighting = 1;
-        columns[ci + 2].is_highlighting = 1;
-        columns[ci + 3].is_highlighting = 1;
+        columns[ci + 0].is_highlighting = true;
+        columns[ci + 1].is_highlighting = true;
+        columns[ci + 2].is_highlighting = true;
+        columns[ci + 3].is_highlighting = true;
       }
     }
 
@@ -279,7 +279,7 @@ int main(
                 cells[ci][ri].is_highlighted = true;
               }
 
-              cells[ci][ri].pause_position = -1;
+              cells[ci][ri].pause_position = -1.0f;
             }
           }
         }
@@ -301,7 +301,7 @@ int main(
               );
             };
           } else {
-            cells[ci][ri].position.y += columns[ci].speed / 10;
+            cells[ci][ri].position.y += columns[ci].speed / 10.0f;
           }
 
           DrawTextEx(
