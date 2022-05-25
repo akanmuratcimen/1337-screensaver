@@ -5,7 +5,8 @@
 
 #include "raylib.h"
 
-#define FULLSCREEN 0
+#define FULLSCREEN 1
+#define FPS_LIMIT 30
 #define FONT_FAMILY "sora.ttf"
 #define WINDOW_TITLE "1337 Screensaver"
 
@@ -13,7 +14,7 @@
 #define FONT_COLOR CLITERAL(Color){ 5, 226, 115, 255 }
 
 #define COLUMN_COUNT 40
-#define ROW_COUNT 30
+#define ROW_COUNT 40
 
 #define MAX(x, y) (x > y ? x : y)
 #define MIN(x, y) (x < y ? x : y)
@@ -33,20 +34,33 @@ struct column {
   bool is_highlighting;
   int highlighting_frame_counter;
   float top_position;
+  int highlighting_row_index;
 };
 
 const char *chars[] = { "1", "3", "7" };
 
-const int font_size = 190;
-const float line_height = 140.0f;
-
-const float match_threshold = 40.0f;
-
-const int speed_min = 20;
-const int speed_max = 40;
+int font_size;
+float line_height;
+float match_threshold;
+float is_aligned_threshold;
+float aligned_speed;
+float screen_offset_x;
+float char_width;
+int highlight_rect_width;
+int highlight_rect_height;
+int highlight_rect_offset_x;
+int highlight_rect_offset_y;
+int speed_min;
+int speed_max;
 
 struct cell cells[COLUMN_COUNT][ROW_COUNT];
 struct column columns[COLUMN_COUNT];
+
+void
+init_scaling(
+  const int screen_width,
+  const int screen_height
+);
 
 void
 initialize_columns(
@@ -54,7 +68,7 @@ initialize_columns(
 ) {
   for (int ci = 0; ci < COLUMN_COUNT; ci++) {
     columns[ci].speed = GetRandomValue(speed_min, speed_max);
-    columns[ci].top_position = 9999999.9f;
+    columns[ci].top_position = 9999.9f;
   }
 }
 
@@ -65,8 +79,8 @@ generate_random_cells(
   for (int ci = 0; ci < COLUMN_COUNT; ci++) {
     for (int ri = 0; ri < ROW_COUNT; ri++) {
       const Vector2 position = {
-        ci * 110.0f - 40.0f,
-        ri * line_height - 1000.0f
+        ci * char_width + screen_offset_x,
+        ri * line_height - GetScreenHeight()
       };
 
       struct cell cell;
@@ -140,6 +154,7 @@ int main(
   }
 
   InitWindow(GetScreenWidth(), GetScreenHeight(), WINDOW_TITLE);
+  init_scaling(GetScreenWidth(), GetScreenHeight());
 
   const Font font = LoadFontEx(FONT_FAMILY, font_size, 0, 0);
 
@@ -147,7 +162,8 @@ int main(
     ToggleFullscreen();
   }
 
-  SetTargetFPS(30);
+  HideCursor();
+  SetTargetFPS(FPS_LIMIT);
 
   initialize_columns();
   generate_random_cells();
@@ -169,7 +185,7 @@ int main(
       goto draw;
     }
 
-    for (int ci = 0; ci < COLUMN_COUNT - 4; ci++) {
+    for (int ci = 0; ci < COLUMN_COUNT - 3; ci++) {
       if (columns[ci].is_highlighting) {
         continue;
       }
@@ -258,6 +274,11 @@ int main(
         columns[ci + 1].is_highlighting = true;
         columns[ci + 2].is_highlighting = true;
         columns[ci + 3].is_highlighting = true;
+
+        columns[ci + 0].highlighting_row_index = r0i;
+        columns[ci + 1].highlighting_row_index = r1i;
+        columns[ci + 2].highlighting_row_index = r2i;
+        columns[ci + 3].highlighting_row_index = r3i;
       }
     }
 
@@ -266,21 +287,55 @@ int main(
 
       ClearBackground(BG_COLOR);
 
+      for (int ci = 0; ci < COLUMN_COUNT - 3; ci++) {
+        struct column column0 = columns[ci + 0];
+        struct column column1 = columns[ci + 1];
+        struct column column2 = columns[ci + 2];
+        struct column column3 = columns[ci + 3];
+
+        if (
+          column0.is_highlighting &&
+          column1.is_highlighting &&
+          column2.is_highlighting &&
+          column3.is_highlighting
+        ) {
+          if (
+            abs(
+              cells[ci + 0][column0.highlighting_row_index].position.y -
+              cells[ci + 1][column1.highlighting_row_index].position.y
+            ) <= is_aligned_threshold &&
+
+            abs(
+              cells[ci + 1][column1.highlighting_row_index].position.y -
+              cells[ci + 2][column2.highlighting_row_index].position.y
+            ) <= is_aligned_threshold &&
+
+            abs(
+              cells[ci + 2][column2.highlighting_row_index].position.y -
+              cells[ci + 3][column3.highlighting_row_index].position.y
+            ) <= is_aligned_threshold
+          ) {
+            for (int ri = 0; ri < ROW_COUNT; ri++) {
+              cells[ci + 0][ri].position.y += aligned_speed;
+              cells[ci + 1][ri].position.y += aligned_speed;
+              cells[ci + 2][ri].position.y += aligned_speed;
+              cells[ci + 3][ri].position.y += aligned_speed;
+            }
+          }
+        }
+      }
+
       for (int ci = 0; ci < COLUMN_COUNT; ci++) {
         if (columns[ci].is_highlighting) {
           columns[ci].highlighting_frame_counter++;
 
           if (columns[ci].highlighting_frame_counter > 60) {
+            cells[ci][columns[ci].highlighting_row_index].is_highlighted = true;
+            cells[ci][columns[ci].highlighting_row_index].pause_position = -1.0f;
+
             columns[ci].highlighting_frame_counter = 0;
             columns[ci].is_highlighting = false;
-
-            for (int ri = 0; ri < ROW_COUNT; ri++) {
-              if (cells[ci][ri].is_highlighting) {
-                cells[ci][ri].is_highlighted = true;
-              }
-
-              cells[ci][ri].pause_position = -1.0f;
-            }
+            columns[ci].highlighting_row_index = -1;
           }
         }
 
@@ -293,10 +348,10 @@ int main(
           ) {
             if (cell.is_highlighting && !cell.is_highlighted) {
               DrawRectangle(
-                cell.position.x - 8,
-                cell.position.y + 18,
-                114,
-                146,
+                cell.position.x + highlight_rect_offset_x,
+                cell.position.y + highlight_rect_offset_y,
+                highlight_rect_width,
+                highlight_rect_height,
                 WHITE
               );
             };
@@ -353,4 +408,82 @@ int main(
   CloseWindow();
 
   return 0;
+}
+
+void
+init_scaling(
+  const int screen_width,
+  const int screen_height
+) {
+  if (screen_width <= 1280) {
+    speed_min = 8;
+    speed_max = speed_min * 2;
+    aligned_speed = speed_min * 0.15f;
+    font_size = 80;
+    line_height = 70;
+    match_threshold = 16.0f;
+    is_aligned_threshold = 4.0f;
+    screen_offset_x = -10.0f;
+    char_width = 66.0f;
+    highlight_rect_width = char_width;
+    highlight_rect_height = 64;
+    highlight_rect_offset_x = -16;
+    highlight_rect_offset_y = 4;
+  } else if (screen_width <= 1440) {
+    speed_min = 14;
+    speed_max = speed_min * 2;
+    aligned_speed = speed_min * 0.15f;
+    font_size = 90;
+    line_height = 80;
+    match_threshold = 22.0f;
+    is_aligned_threshold = 4.0f;
+    screen_offset_x = -16.0f;
+    char_width = 74.0f;
+    highlight_rect_width = char_width;
+    highlight_rect_height = 78;
+    highlight_rect_offset_x = -16;
+    highlight_rect_offset_y = 4;
+  } else if (screen_width <= 2048) {
+    speed_min = 14;
+    speed_max = speed_min * 2;
+    aligned_speed = speed_min * 0.15f;
+    font_size = 100;
+    line_height = 90;
+    match_threshold = 26.0f;
+    is_aligned_threshold = 4.0f;
+    screen_offset_x = -16.0f;
+    char_width = 86.0f;
+    highlight_rect_width = char_width;
+    highlight_rect_height = 84;
+    highlight_rect_offset_x = -18;
+    highlight_rect_offset_y = 4;
+  } else if (screen_width <= 2560) {
+    speed_min = 18;
+    speed_max = speed_min * 2;
+    aligned_speed = speed_min * 0.15f;
+    font_size = 150;
+    line_height = 140;
+    match_threshold = 36.0f;
+    is_aligned_threshold = 5.0f;
+    screen_offset_x = -30.0f;
+    char_width = 118.0f;
+    highlight_rect_width = char_width;
+    highlight_rect_height = 120;
+    highlight_rect_offset_x = -20;
+    highlight_rect_offset_y = 12;
+  } else {
+    speed_min = 24;
+    speed_max = speed_min * 2;
+    aligned_speed = speed_min * 0.15f;
+    font_size = 210;
+    line_height = 210.0f;
+    match_threshold = 40.0f;
+    is_aligned_threshold = 5.0f;
+    screen_offset_x = -40.0f;
+    char_width = 170.0f;
+    highlight_rect_width = 170;
+    highlight_rect_height = 180;
+    highlight_rect_offset_x = -36;
+    highlight_rect_offset_y = 12;
+  }
 }
