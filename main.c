@@ -157,7 +157,15 @@ int main(
   InitWindow(GetScreenWidth(), GetScreenHeight(), WINDOW_TITLE);
   init_scaling(GetScreenWidth(), GetScreenHeight());
 
-  const Font font = LoadFontFromMemory(".ttf", sora_ttf, sora_ttf_len, font_size, 0, 0);
+  const Font font =
+    LoadFontFromMemory(
+      ".ttf",
+      sora_ttf,
+      sora_ttf_len,
+      font_size,
+      0,
+      0
+    );
 
   if (FULLSCREEN) {
     ToggleFullscreen();
