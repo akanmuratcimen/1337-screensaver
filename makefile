@@ -1,5 +1,5 @@
 CC := gcc
-CFLAGS := -Wall -std=gnu11 -pedantic -O3 -fdiagnostics-color=always
+CFLAGS := -Wall -Wextra -std=gnu11 -pedantic -O3 -fdiagnostics-color=always
 LIBSX11 := -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 LIBSW32 := -lraylib -lopengl32 -lgdi32 -lwinmm -mwindows -I raylib\src -L raylib\src
 OUTPUT := 1337-screensaver

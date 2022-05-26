@@ -64,8 +64,7 @@ struct column columns[COLUMN_COUNT];
 
 void
 init_scaling(
-  const int screen_width,
-  const int screen_height
+  const int screen_width
 );
 
 void
@@ -161,10 +160,9 @@ bool is_any_key_pressed(
 bool is_mouse_moved_or_button_presses(
   const Vector2 initial_mouse_position
 ) {
-  
     if (
-      IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || 
-      IsMouseButtonPressed(MOUSE_RIGHT_BUTTON) || 
+      IsMouseButtonPressed(MOUSE_BUTTON_LEFT) ||
+      IsMouseButtonPressed(MOUSE_RIGHT_BUTTON) ||
       IsMouseButtonPressed(MOUSE_MIDDLE_BUTTON)
     ) {
       return true;
@@ -173,8 +171,8 @@ bool is_mouse_moved_or_button_presses(
     const Vector2 current_mouse_position = GetMousePosition();
 
     if (
-        current_mouse_position.x != initial_mouse_position.x ||
-        current_mouse_position.y != initial_mouse_position.y
+      current_mouse_position.x != initial_mouse_position.x ||
+      current_mouse_position.y != initial_mouse_position.y
     ) {
       return true;
     }
@@ -189,8 +187,12 @@ bool is_any_touch_detected(
 }
 
 int main(
-  int argc, 
+#if defined(_WIN32)
+  int argc,
   char* argv[]
+#else
+  void
+#endif
 ) {
   if (!FULLSCREEN) {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
@@ -217,7 +219,7 @@ int main(
 #endif
 
   InitWindow(GetScreenWidth(), GetScreenHeight(), WINDOW_TITLE);
-  init_scaling(GetScreenWidth(), GetScreenHeight());
+  init_scaling(GetScreenWidth());
 
   const Font font =
     LoadFontFromMemory(
@@ -240,29 +242,32 @@ int main(
   generate_random_cells();
 
   int refresh_columns_frame_counter = 0;
-  int higlighting_activation_frame_counter = 0;
-
+  int initialization_frame_counter = 0;
   bool warmup = false;
-  Vector2 initial_mouse_position = GetMousePosition();;
+  Vector2 initial_mouse_position;
 
   while (!WindowShouldClose()) {
-    if (
-      is_any_key_pressed() || 
-      is_mouse_moved_or_button_presses(initial_mouse_position) ||
-      is_any_touch_detected()
-    ) {
-      goto exit;
-    }
-
     refresh_columns_frame_counter++;
-    higlighting_activation_frame_counter++;
 
-    if (!warmup && higlighting_activation_frame_counter > 50) {
-      warmup = true;
+    if (!warmup) {
+      if (initialization_frame_counter > 30) {
+        warmup = true;
+        initial_mouse_position = GetMousePosition();
+      } else {
+        initialization_frame_counter++;
+      }
     }
 
     if (!warmup) {
       goto draw;
+    }
+
+    if (
+      is_any_key_pressed() ||
+      is_mouse_moved_or_button_presses(initial_mouse_position) ||
+      is_any_touch_detected()
+    ) {
+      goto exit;
     }
 
     for (int ci = 0; ci < COLUMN_COUNT - 3; ci++) {
@@ -494,8 +499,7 @@ exit:
 
 void
 init_scaling(
-  const int screen_width,
-  const int screen_height
+  const int screen_width
 ) {
   if (screen_width <= 1280) {
     speed_min = 8;
