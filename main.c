@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <math.h>
+#include <string.h>
 
 #include "raylib.h"
 #include "font.h"
@@ -19,6 +20,10 @@
 
 #define MAX(x, y) (x > y ? x : y)
 #define MIN(x, y) (x < y ? x : y)
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 struct cell {
   const char *value;
@@ -140,19 +145,76 @@ is_cells_match(
     return false;
   }
 
-  if (abs(target.position.y - source.position.y) > match_threshold) {
+  if (fabsf(target.position.y - source.position.y) > match_threshold) {
     return false;
   }
 
   return true;
 }
 
-int main(
+bool is_any_key_pressed(
   void
+) {
+  return GetKeyPressed() != 0;
+}
+
+bool is_mouse_moved_or_button_presses(
+  const Vector2 initial_mouse_position
+) {
+  
+    if (
+      IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || 
+      IsMouseButtonPressed(MOUSE_RIGHT_BUTTON) || 
+      IsMouseButtonPressed(MOUSE_MIDDLE_BUTTON)
+    ) {
+      return true;
+    }
+
+    const Vector2 current_mouse_position = GetMousePosition();
+
+    if (
+        current_mouse_position.x != initial_mouse_position.x ||
+        current_mouse_position.y != initial_mouse_position.y
+    ) {
+      return true;
+    }
+
+    return false;
+}
+
+bool is_any_touch_detected(
+  void
+) {
+  return GetTouchPointCount() != 0;
+}
+
+int main(
+  int argc, 
+  char* argv[]
 ) {
   if (!FULLSCREEN) {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
   }
+
+#if defined(_WIN32)
+
+  if (argc < 2) {
+    goto exit;
+  }
+
+  if (strcmp(argv[1], "/c") == 0) {
+    goto exit;
+  }
+
+  if (strcmp(argv[1], "/p") == 0) {
+    goto exit;
+  }
+
+  if (strcmp(argv[1], "/s") != 0) {
+    goto exit;
+  }
+
+#endif
 
   InitWindow(GetScreenWidth(), GetScreenHeight(), WINDOW_TITLE);
   init_scaling(GetScreenWidth(), GetScreenHeight());
@@ -181,8 +243,17 @@ int main(
   int higlighting_activation_frame_counter = 0;
 
   bool warmup = false;
+  Vector2 initial_mouse_position = GetMousePosition();;
 
   while (!WindowShouldClose()) {
+    if (
+      is_any_key_pressed() || 
+      is_mouse_moved_or_button_presses(initial_mouse_position) ||
+      is_any_touch_detected()
+    ) {
+      goto exit;
+    }
+
     refresh_columns_frame_counter++;
     higlighting_activation_frame_counter++;
 
@@ -309,17 +380,17 @@ int main(
           column3.is_highlighting
         ) {
           if (
-            abs(
+            fabsf(
               cells[ci + 0][column0.highlighting_row_index].position.y -
               cells[ci + 1][column1.highlighting_row_index].position.y
             ) <= is_aligned_threshold &&
 
-            abs(
+            fabsf(
               cells[ci + 1][column1.highlighting_row_index].position.y -
               cells[ci + 2][column2.highlighting_row_index].position.y
             ) <= is_aligned_threshold &&
 
-            abs(
+            fabsf(
               cells[ci + 2][column2.highlighting_row_index].position.y -
               cells[ci + 3][column3.highlighting_row_index].position.y
             ) <= is_aligned_threshold
@@ -412,6 +483,8 @@ int main(
     }
   }
 
+exit:
+
   UnloadFont(font);
 
   CloseWindow();
@@ -496,3 +569,7 @@ init_scaling(
     highlight_rect_offset_y = 12;
   }
 }
+
+#if defined(__cplusplus)
+}
+#endif
