@@ -10,3 +10,6 @@ all:
 
 run:
 	./$(OUTPUT)
+
+clean:
+	rm $(OUTPUT)

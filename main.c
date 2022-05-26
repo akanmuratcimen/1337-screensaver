@@ -4,6 +4,7 @@
 #include <math.h>
 
 #include "raylib.h"
+#include "font.h"
 
 #define FULLSCREEN 1
 #define FPS_LIMIT 30
@@ -156,7 +157,7 @@ int main(
   InitWindow(GetScreenWidth(), GetScreenHeight(), WINDOW_TITLE);
   init_scaling(GetScreenWidth(), GetScreenHeight());
 
-  const Font font = LoadFontEx(FONT_FAMILY, font_size, 0, 0);
+  const Font font = LoadFontFromMemory(".ttf", sora_ttf, sora_ttf_len, font_size, 0, 0);
 
   if (FULLSCREEN) {
     ToggleFullscreen();
