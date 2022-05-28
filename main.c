@@ -160,24 +160,24 @@ bool is_any_key_pressed(
 bool is_mouse_moved_or_button_presses(
   const Vector2 initial_mouse_position
 ) {
-    if (
-      IsMouseButtonPressed(MOUSE_BUTTON_LEFT) ||
-      IsMouseButtonPressed(MOUSE_RIGHT_BUTTON) ||
-      IsMouseButtonPressed(MOUSE_MIDDLE_BUTTON)
-    ) {
-      return true;
-    }
+  if (
+    IsMouseButtonPressed(MOUSE_BUTTON_LEFT) ||
+    IsMouseButtonPressed(MOUSE_RIGHT_BUTTON) ||
+    IsMouseButtonPressed(MOUSE_MIDDLE_BUTTON)
+  ) {
+    return true;
+  }
 
-    const Vector2 current_mouse_position = GetMousePosition();
+  const Vector2 current_mouse_position = GetMousePosition();
 
-    if (
-      current_mouse_position.x != initial_mouse_position.x ||
-      current_mouse_position.y != initial_mouse_position.y
-    ) {
-      return true;
-    }
+  if (
+    current_mouse_position.x != initial_mouse_position.x ||
+    current_mouse_position.y != initial_mouse_position.y
+  ) {
+    return true;
+  }
 
-    return false;
+  return false;
 }
 
 bool is_any_touch_detected(
@@ -475,14 +475,16 @@ int main(
         }
 
         for (int ri = 0; ri < ROW_COUNT; ri++) {
-          if (cells[ci][ri].position.y > GetScreenHeight()) {
-            columns[ci].top_position = columns[ci].top_position - line_height;
-
-            cells[ci][ri].is_highlighted = false;
-            cells[ci][ri].is_highlighting = false;
-            cells[ci][ri].position.y = columns[ci].top_position;
-            cells[ci][ri].value = chars[GetRandomValue(0, 2)];
+          if (cells[ci][ri].position.y <= GetScreenHeight()) {
+            continue;
           }
+
+          columns[ci].top_position = columns[ci].top_position - line_height;
+
+          cells[ci][ri].is_highlighted = false;
+          cells[ci][ri].is_highlighting = false;
+          cells[ci][ri].position.y = columns[ci].top_position;
+          cells[ci][ri].value = chars[GetRandomValue(0, 2)];
         }
       }
     }
