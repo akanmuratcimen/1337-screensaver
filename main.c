@@ -554,7 +554,7 @@ init_scaling(
     match_threshold = 36.0f;
     is_aligned_threshold = 5.0f;
     screen_offset_x = -30.0f;
-    char_width = 118.0f;
+    char_width = 120.0f;
     highlight_rect_width = char_width;
     highlight_rect_height = 120;
     highlight_rect_offset_x = -20;
