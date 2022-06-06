@@ -2,18 +2,21 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <math.h>
-#include <string.h>
+#include <time.h>
 
-#include "raylib.h"
-#include "font.h"
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
+#include <cglm/cglm.h>
 
-#define FULLSCREEN 1
+#include "shader_loader.h"
+#include "texture.h"
+
+#define FULLSCREEN 0
 #define FPS_LIMIT 30
-#define FONT_FAMILY "sora.ttf"
 #define WINDOW_TITLE "1337 Screensaver"
 
-#define BG_COLOR CLITERAL(Color){ 12, 12, 245, 255 }
-#define FONT_COLOR CLITERAL(Color){ 5, 226, 115, 255 }
+#define BG_COLOR 12.0f/255.0f, 12.0f/255.0f, 245.0f/255.0f, 1.0f
+#define FONT_COLOR 5.0f/255.0f, 226.0f/255.0f, 115.0f/255.0f, 1.0f
 
 #define COLUMN_COUNT 40
 #define ROW_COUNT 40
@@ -25,11 +28,16 @@
 extern "C" {
 #endif
 
+struct vector2 {
+  float x;
+  float y;
+};
+
 struct cell {
-  const char *value;
+  char value;
   int column;
   int row;
-  Vector2 position;
+  struct vector2 position;
   float pause_position;
   bool is_highlighting;
   bool is_highlighted;
@@ -43,9 +51,13 @@ struct column {
   int highlighting_row_index;
 };
 
-const char *chars[] = { "1", "3", "7" };
+struct window_size {
+  int width;
+  int height;
+};
 
-int font_size;
+const char chars[] = { '1', '3', '7' };
+
 float line_height;
 float match_threshold;
 float is_aligned_threshold;
@@ -62,17 +74,98 @@ int speed_max;
 struct cell cells[COLUMN_COUNT][ROW_COUNT];
 struct column columns[COLUMN_COUNT];
 
+GLFWwindow *window = NULL;
+
+bool is_any_key_pressed = false;
+bool is_any_mouse_button_pressed = false;
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
+void
+key_callback(
+  GLFWwindow* window,
+  int key,
+  int scancode,
+  int action,
+  int mods
+) {
+  is_any_key_pressed = true;
+}
+
+void
+mouse_button_callback(
+  GLFWwindow* window,
+  int button,
+  int action,
+  int mods
+) {
+  is_any_mouse_button_pressed = true;
+}
+
+#pragma GCC diagnostic pop
+
+void
+create_window(
+  void
+) {
+  glfwInit();
+
+  GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+  const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
+  window =
+    glfwCreateWindow(
+      mode->width,
+      mode->height,
+      "1337 Screensaver",
+      FULLSCREEN ? monitor : NULL,
+      NULL
+    );
+
+  glfwMakeContextCurrent(window);
+  glfwSetKeyCallback(window, key_callback);
+  glfwSetMouseButtonCallback(window, mouse_button_callback);
+
+  glewInit();
+
+  glViewport(0, 0, mode->width, mode->height);
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  glOrtho(0.0, mode->width, mode->height, 0.0f, 0.0f, 1.0f);
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity();
+}
+
+struct window_size
+get_window_size(
+  void
+) {
+  int width, height;
+  glfwGetWindowSize(window, &width, &height);
+
+  return (struct window_size) { width, height };
+}
+
 void
 init_scaling(
   const int screen_width
 );
+
+int
+get_random_number(
+  const int min,
+  const int max
+) {
+  return (rand() % (abs(max - min) + 1) + min);
+}
 
 void
 initialize_columns(
   void
 ) {
   for (int ci = 0; ci < COLUMN_COUNT; ci++) {
-    columns[ci].speed = GetRandomValue(speed_min, speed_max);
+    columns[ci].speed = get_random_number(speed_min, speed_max);
     columns[ci].top_position = 9999.9f;
   }
 }
@@ -83,14 +176,14 @@ generate_random_cells(
 ) {
   for (int ci = 0; ci < COLUMN_COUNT; ci++) {
     for (int ri = 0; ri < ROW_COUNT; ri++) {
-      const Vector2 position = {
+      const struct vector2 position = {
         ci * char_width + screen_offset_x,
-        ri * line_height - GetScreenHeight()
+        ri * line_height - get_window_size().height
       };
 
       struct cell cell;
 
-      cell.value = chars[GetRandomValue(0, 2)];
+      cell.value = chars[get_random_number(0, 2)];
       cell.column = ci;
       cell.row = ri;
       cell.position = position;
@@ -119,11 +212,13 @@ is_cell_available_to_highlight(
     return false;
   }
 
-  if (cell.position.y > GetScreenHeight()) {
+  const struct window_size window_size = get_window_size();
+
+  if (cell.position.y > window_size.height) {
     return false;
   }
 
-  if (cell.position.x > GetScreenWidth()) {
+  if (cell.position.x > window_size.width) {
     return false;
   }
 
@@ -136,7 +231,7 @@ is_cells_match(
   const struct cell target,
   const char expected_char
 ) {
-  if (target.value[0] != expected_char) {
+  if (target.value != expected_char) {
     return false;
   }
 
@@ -151,42 +246,29 @@ is_cells_match(
   return true;
 }
 
-bool is_any_key_pressed(
+struct vector2
+get_cursor_position(
   void
 ) {
-  return GetKeyPressed() != 0;
+  double xpos, ypos;
+  glfwGetCursorPos(window, &xpos, &ypos);
+
+  return (struct vector2) { xpos, ypos };
 }
 
-bool is_mouse_moved_or_button_presses(
-  const Vector2 initial_mouse_position
+bool
+is_mouse_moved(
+  const struct vector2 initial_position
 ) {
-  if (
-    IsMouseButtonPressed(MOUSE_BUTTON_LEFT) ||
-    IsMouseButtonPressed(MOUSE_RIGHT_BUTTON) ||
-    IsMouseButtonPressed(MOUSE_MIDDLE_BUTTON)
-  ) {
-    return true;
-  }
+  const struct vector2 current_position = get_cursor_position();
 
-  const Vector2 current_mouse_position = GetMousePosition();
-
-  if (
-    current_mouse_position.x != initial_mouse_position.x ||
-    current_mouse_position.y != initial_mouse_position.y
-  ) {
-    return true;
-  }
-
-  return false;
+  return
+    current_position.x != initial_position.x ||
+    current_position.y != initial_position.y;
 }
 
-bool is_any_touch_detected(
-  void
-) {
-  return GetTouchPointCount() != 0;
-}
-
-int main(
+int
+main(
 #if defined(_WIN32)
   int argc,
   char* argv[]
@@ -194,10 +276,6 @@ int main(
   void
 #endif
 ) {
-  if (!FULLSCREEN) {
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-  }
-
 #if defined(_WIN32)
 
   if (argc < 2) {
@@ -218,41 +296,41 @@ int main(
 
 #endif
 
-  InitWindow(GetScreenWidth(), GetScreenHeight(), WINDOW_TITLE);
-  init_scaling(GetScreenWidth());
+  create_window();
+  init_scaling(get_window_size().width);
 
-  const Font font =
-    LoadFontFromMemory(
-      ".ttf",
-      sora_ttf,
-      sora_ttf_len,
-      font_size,
-      0,
-      0
-    );
+  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
-  if (FULLSCREEN) {
-    ToggleFullscreen();
-  }
-
-  HideCursor();
-  SetTargetFPS(FPS_LIMIT);
+  srand(time(NULL));
 
   initialize_columns();
   generate_random_cells();
 
+  struct texture texture = load_texture("sprite.jpg");
+  GLuint shader_id = compile_shaders("shaders/vs.glsl", "shaders/fs.glsl");
+
   int refresh_columns_frame_counter = 0;
   int initialization_frame_counter = 0;
   bool warmup = false;
-  Vector2 initial_mouse_position;
+  struct vector2 initial_mouse_position;
 
-  while (!WindowShouldClose()) {
+  const struct window_size window_size = get_window_size();
+
+  float last_time = glfwGetTime();
+
+  while (!glfwWindowShouldClose(window)) {
+    while (glfwGetTime() < last_time + 1.0f / FPS_LIMIT) {
+      continue;
+    }
+
+    last_time += 1.0f / FPS_LIMIT;
+
     refresh_columns_frame_counter++;
 
     if (!warmup) {
       if (initialization_frame_counter > 30) {
         warmup = true;
-        initial_mouse_position = GetMousePosition();
+        initial_mouse_position = get_cursor_position();
       } else {
         initialization_frame_counter++;
       }
@@ -263,11 +341,11 @@ int main(
     }
 
     if (
-      is_any_key_pressed() ||
-      is_mouse_moved_or_button_presses(initial_mouse_position) ||
-      is_any_touch_detected()
+      is_any_mouse_button_pressed ||
+      is_any_key_pressed ||
+      is_mouse_moved(initial_mouse_position)
     ) {
-      goto exit;
+      //goto exit;
     }
 
     for (int ci = 0; ci < COLUMN_COUNT - 3; ci++) {
@@ -276,7 +354,7 @@ int main(
       }
 
       for (int r0i = 0; r0i < ROW_COUNT; r0i++) {
-        if (cells[ci][r0i].value[0] != '1') {
+        if (cells[ci][r0i].value != '1') {
           continue;
         }
 
@@ -368,94 +446,112 @@ int main(
     }
 
   draw:
-    BeginDrawing();
+    glClearColor(BG_COLOR);
+    glClear(GL_COLOR_BUFFER_BIT);
 
-      ClearBackground(BG_COLOR);
+    glUseProgram(shader_id);
 
-      for (int ci = 0; ci < COLUMN_COUNT - 3; ci++) {
-        struct column column0 = columns[ci + 0];
-        struct column column1 = columns[ci + 1];
-        struct column column2 = columns[ci + 2];
-        struct column column3 = columns[ci + 3];
+    mat4 transform;
+    glm_mat4_identity(transform);
+
+    glm_ortho(
+      0.0f,
+      window_size.width,
+      window_size.height,
+      0.0f,
+      -1.0f,
+      1.0f,
+      transform
+    );
+
+    unsigned int transform_location =
+      glGetUniformLocation(
+        shader_id,
+        "transform"
+      );
+
+    glUniformMatrix4fv(transform_location, 1, GL_FALSE, transform[0]);
+
+    for (int ci = 0; ci < COLUMN_COUNT - 3; ci++) {
+      struct column column0 = columns[ci + 0];
+      struct column column1 = columns[ci + 1];
+      struct column column2 = columns[ci + 2];
+      struct column column3 = columns[ci + 3];
+
+      if (
+        column0.is_highlighting &&
+        column1.is_highlighting &&
+        column2.is_highlighting &&
+        column3.is_highlighting
+      ) {
+        if (
+          fabsf(
+            cells[ci + 0][column0.highlighting_row_index].position.y -
+            cells[ci + 1][column1.highlighting_row_index].position.y
+          ) <= is_aligned_threshold &&
+
+          fabsf(
+            cells[ci + 1][column1.highlighting_row_index].position.y -
+            cells[ci + 2][column2.highlighting_row_index].position.y
+          ) <= is_aligned_threshold &&
+
+          fabsf(
+            cells[ci + 2][column2.highlighting_row_index].position.y -
+            cells[ci + 3][column3.highlighting_row_index].position.y
+          ) <= is_aligned_threshold
+        ) {
+          for (int ri = 0; ri < ROW_COUNT; ri++) {
+            cells[ci + 0][ri].position.y += aligned_speed;
+            cells[ci + 1][ri].position.y += aligned_speed;
+            cells[ci + 2][ri].position.y += aligned_speed;
+            cells[ci + 3][ri].position.y += aligned_speed;
+          }
+        }
+      }
+    }
+
+    for (int ci = 0; ci < COLUMN_COUNT; ci++) {
+      if (columns[ci].is_highlighting) {
+        columns[ci].highlighting_frame_counter++;
+
+        if (columns[ci].highlighting_frame_counter > 60) {
+          cells[ci][columns[ci].highlighting_row_index].is_highlighted = true;
+          cells[ci][columns[ci].highlighting_row_index].pause_position = -1.0f;
+
+          columns[ci].highlighting_frame_counter = 0;
+          columns[ci].is_highlighting = false;
+          columns[ci].highlighting_row_index = -1;
+        }
+      }
+
+      for (int ri = 0; ri < ROW_COUNT; ri++) {
+        struct cell cell = cells[ci][ri];
 
         if (
-          column0.is_highlighting &&
-          column1.is_highlighting &&
-          column2.is_highlighting &&
-          column3.is_highlighting
+          columns[ci].is_highlighting &&
+          cell.position.y >= cell.pause_position
         ) {
-          if (
-            fabsf(
-              cells[ci + 0][column0.highlighting_row_index].position.y -
-              cells[ci + 1][column1.highlighting_row_index].position.y
-            ) <= is_aligned_threshold &&
-
-            fabsf(
-              cells[ci + 1][column1.highlighting_row_index].position.y -
-              cells[ci + 2][column2.highlighting_row_index].position.y
-            ) <= is_aligned_threshold &&
-
-            fabsf(
-              cells[ci + 2][column2.highlighting_row_index].position.y -
-              cells[ci + 3][column3.highlighting_row_index].position.y
-            ) <= is_aligned_threshold
-          ) {
-            for (int ri = 0; ri < ROW_COUNT; ri++) {
-              cells[ci + 0][ri].position.y += aligned_speed;
-              cells[ci + 1][ri].position.y += aligned_speed;
-              cells[ci + 2][ri].position.y += aligned_speed;
-              cells[ci + 3][ri].position.y += aligned_speed;
-            }
-          }
+          if (cell.is_highlighting && !cell.is_highlighted) {
+            //DrawRectangle(
+            //  cell.position.x + highlight_rect_offset_x,
+            //  cell.position.y + highlight_rect_offset_y,
+            //  highlight_rect_width,
+            //  highlight_rect_height,
+            //  WHITE
+            //);
+          };
+        } else {
+          cells[ci][ri].position.y += columns[ci].speed / 10.0f;
         }
+
+        draw_texture(
+          texture,
+          cell.value,
+          cell.position.x,
+          cell.position.y
+        );
       }
-
-      for (int ci = 0; ci < COLUMN_COUNT; ci++) {
-        if (columns[ci].is_highlighting) {
-          columns[ci].highlighting_frame_counter++;
-
-          if (columns[ci].highlighting_frame_counter > 60) {
-            cells[ci][columns[ci].highlighting_row_index].is_highlighted = true;
-            cells[ci][columns[ci].highlighting_row_index].pause_position = -1.0f;
-
-            columns[ci].highlighting_frame_counter = 0;
-            columns[ci].is_highlighting = false;
-            columns[ci].highlighting_row_index = -1;
-          }
-        }
-
-        for (int ri = 0; ri < ROW_COUNT; ri++) {
-          struct cell cell = cells[ci][ri];
-
-          if (
-            columns[ci].is_highlighting &&
-            cell.position.y >= cell.pause_position
-          ) {
-            if (cell.is_highlighting && !cell.is_highlighted) {
-              DrawRectangle(
-                cell.position.x + highlight_rect_offset_x,
-                cell.position.y + highlight_rect_offset_y,
-                highlight_rect_width,
-                highlight_rect_height,
-                WHITE
-              );
-            };
-          } else {
-            cells[ci][ri].position.y += columns[ci].speed / 10.0f;
-          }
-
-          DrawTextEx(
-            font,
-            cell.value,
-            cell.position,
-            font_size,
-            0,
-            FONT_COLOR
-          );
-        }
-      }
-
-    EndDrawing();
+    }
 
     if (((refresh_columns_frame_counter / 100) % 2) == 1) {
       refresh_columns_frame_counter = 0;
@@ -475,7 +571,7 @@ int main(
         }
 
         for (int ri = 0; ri < ROW_COUNT; ri++) {
-          if (cells[ci][ri].position.y <= GetScreenHeight()) {
+          if (cells[ci][ri].position.y <= window_size.height) {
             continue;
           }
 
@@ -484,17 +580,22 @@ int main(
           cells[ci][ri].is_highlighted = false;
           cells[ci][ri].is_highlighting = false;
           cells[ci][ri].position.y = columns[ci].top_position;
-          cells[ci][ri].value = chars[GetRandomValue(0, 2)];
+          cells[ci][ri].value = chars[get_random_number(0, 2)];
         }
       }
     }
+
+    glFlush();
+
+    glfwSwapBuffers(window);
+    glfwPollEvents();
   }
 
 exit:
+  free_texture(texture);
 
-  UnloadFont(font);
-
-  CloseWindow();
+  glfwDestroyWindow(window);
+  glfwTerminate();
 
   return 0;
 }
@@ -507,7 +608,6 @@ init_scaling(
     speed_min = 8;
     speed_max = speed_min * 2;
     aligned_speed = speed_min * 0.15f;
-    font_size = 80;
     line_height = 70;
     match_threshold = 16.0f;
     is_aligned_threshold = 4.0f;
@@ -521,7 +621,6 @@ init_scaling(
     speed_min = 14;
     speed_max = speed_min * 2;
     aligned_speed = speed_min * 0.15f;
-    font_size = 90;
     line_height = 80;
     match_threshold = 22.0f;
     is_aligned_threshold = 4.0f;
@@ -535,7 +634,6 @@ init_scaling(
     speed_min = 14;
     speed_max = speed_min * 2;
     aligned_speed = speed_min * 0.15f;
-    font_size = 100;
     line_height = 90;
     match_threshold = 26.0f;
     is_aligned_threshold = 4.0f;
@@ -549,12 +647,11 @@ init_scaling(
     speed_min = 18;
     speed_max = speed_min * 2;
     aligned_speed = speed_min * 0.15f;
-    font_size = 150;
-    line_height = 140;
+    line_height = 170;
     match_threshold = 36.0f;
     is_aligned_threshold = 5.0f;
     screen_offset_x = -30.0f;
-    char_width = 120.0f;
+    char_width = 140.0f;
     highlight_rect_width = char_width;
     highlight_rect_height = 120;
     highlight_rect_offset_x = -20;
@@ -563,7 +660,6 @@ init_scaling(
     speed_min = 24;
     speed_max = speed_min * 2;
     aligned_speed = speed_min * 0.15f;
-    font_size = 210;
     line_height = 210.0f;
     match_threshold = 40.0f;
     is_aligned_threshold = 5.0f;
