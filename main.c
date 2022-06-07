@@ -18,8 +18,8 @@
 #define BG_COLOR 12.0f/255.0f, 12.0f/255.0f, 245.0f/255.0f, 1.0f
 #define FONT_COLOR 5.0f/255.0f, 226.0f/255.0f, 115.0f/255.0f, 1.0f
 
-#define COLUMN_COUNT 40
-#define ROW_COUNT 40
+#define COLUMN_COUNT 20
+#define ROW_COUNT 20
 
 #define MAX(x, y) (x > y ? x : y)
 #define MIN(x, y) (x < y ? x : y)
@@ -127,6 +127,7 @@ create_window(
   glfwSetKeyCallback(window, key_callback);
   glfwSetMouseButtonCallback(window, mouse_button_callback);
 
+  glfwSwapInterval(1);
   glewInit();
 
   glViewport(0, 0, mode->width, mode->height);
@@ -316,15 +317,7 @@ main(
 
   const struct window_size window_size = get_window_size();
 
-  float last_time = glfwGetTime();
-
   while (!glfwWindowShouldClose(window)) {
-    while (glfwGetTime() < last_time + 1.0f / FPS_LIMIT) {
-      continue;
-    }
-
-    last_time += 1.0f / FPS_LIMIT;
-
     refresh_columns_frame_counter++;
 
     if (!warmup) {
