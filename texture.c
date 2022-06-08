@@ -27,6 +27,9 @@ load_texture(
   glGenTextures(1, &id);
   glBindTexture(GL_TEXTURE_2D, id);
 
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
   glTexImage2D(
     GL_TEXTURE_2D,
     0,
@@ -56,17 +59,11 @@ load_texture(
     .id = id,
     .width = width,
     .height = height,
-    .data = data
   };
 
-  return texture;
-}
+  stbi_image_free(data);
 
-void
-free_texture(
-  struct texture texture
-) {
-  stbi_image_free(texture.data);
+  return texture;
 }
 
 void

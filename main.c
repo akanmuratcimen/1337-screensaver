@@ -54,7 +54,7 @@ struct column {
 struct window_size {
   int width;
   int height;
-};
+} window_size;
 
 const char chars[] = { '1', '3', '7' };
 
@@ -111,6 +111,10 @@ create_window(
 ) {
   glfwInit();
 
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
   GLFWmonitor* monitor = glfwGetPrimaryMonitor();
   const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
@@ -131,21 +135,11 @@ create_window(
   glewInit();
 
   glViewport(0, 0, mode->width, mode->height);
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-  glOrtho(0.0, mode->width, mode->height, 0.0f, 0.0f, 1.0f);
-  glMatrixMode(GL_MODELVIEW);
-  glLoadIdentity();
-}
 
-struct window_size
-get_window_size(
-  void
-) {
   int width, height;
   glfwGetWindowSize(window, &width, &height);
 
-  return (struct window_size) { width, height };
+  window_size = (struct window_size) { width, height };
 }
 
 void
@@ -179,7 +173,7 @@ generate_random_cells(
     for (int ri = 0; ri < ROW_COUNT; ri++) {
       const struct vector2 position = {
         ci * char_width + screen_offset_x,
-        ri * line_height - get_window_size().height
+        ri * line_height - window_size.height
       };
 
       struct cell cell;
@@ -212,8 +206,6 @@ is_cell_available_to_highlight(
   if (cell.position.y < 0) {
     return false;
   }
-
-  const struct window_size window_size = get_window_size();
 
   if (cell.position.y > window_size.height) {
     return false;
@@ -298,7 +290,7 @@ main(
 #endif
 
   create_window();
-  init_scaling(get_window_size().width);
+  init_scaling(window_size.width);
 
   glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
@@ -308,14 +300,36 @@ main(
   generate_random_cells();
 
   struct texture texture = load_texture("sprite.jpg");
+
   GLuint shader_id = compile_shaders("shaders/vs.glsl", "shaders/fs.glsl");
+  glUseProgram(shader_id);
 
   int refresh_columns_frame_counter = 0;
   int initialization_frame_counter = 0;
   bool warmup = false;
   struct vector2 initial_mouse_position;
 
-  const struct window_size window_size = get_window_size();
+
+  mat4 transform;
+  glm_mat4_identity(transform);
+
+  glm_ortho(
+    0.0f,
+    window_size.width,
+    window_size.height,
+    0.0f,
+    -1.0f,
+    1.0f,
+    transform
+  );
+
+  unsigned int transform_location =
+    glGetUniformLocation(
+      shader_id,
+      "transform"
+    );
+
+  glUniformMatrix4fv(transform_location, 1, GL_FALSE, transform[0]);
 
   while (!glfwWindowShouldClose(window)) {
     refresh_columns_frame_counter++;
@@ -442,29 +456,6 @@ main(
     glClearColor(BG_COLOR);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    glUseProgram(shader_id);
-
-    mat4 transform;
-    glm_mat4_identity(transform);
-
-    glm_ortho(
-      0.0f,
-      window_size.width,
-      window_size.height,
-      0.0f,
-      -1.0f,
-      1.0f,
-      transform
-    );
-
-    unsigned int transform_location =
-      glGetUniformLocation(
-        shader_id,
-        "transform"
-      );
-
-    glUniformMatrix4fv(transform_location, 1, GL_FALSE, transform[0]);
-
     for (int ci = 0; ci < COLUMN_COUNT - 3; ci++) {
       struct column column0 = columns[ci + 0];
       struct column column1 = columns[ci + 1];
@@ -585,8 +576,6 @@ main(
   }
 
 exit:
-  free_texture(texture);
-
   glfwDestroyWindow(window);
   glfwTerminate();
 

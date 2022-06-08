@@ -5,17 +5,11 @@ struct texture {
   unsigned int id;
   int width;
   int height;
-  unsigned char *data;
 };
 
 struct texture
 load_texture(
   const char *file_name
-);
-
-void
-free_texture(
-  struct texture texture
 );
 
 void
