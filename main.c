@@ -2,12 +2,12 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <math.h>
-#include <time.h>
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <cglm/cglm.h>
 
+#include "core.h"
 #include "shader_loader.h"
 #include "texture.h"
 
@@ -27,29 +27,6 @@
 #if defined(__cplusplus)
 extern "C" {
 #endif
-
-struct vector2 {
-  float x;
-  float y;
-};
-
-struct cell {
-  char value;
-  int column;
-  int row;
-  struct vector2 position;
-  float pause_position;
-  bool is_highlighting;
-  bool is_highlighted;
-};
-
-struct column {
-  float speed;
-  bool is_highlighting;
-  int highlighting_frame_counter;
-  float top_position;
-  int highlighting_row_index;
-};
 
 struct window_size {
   int width;
@@ -294,12 +271,10 @@ main(
 
   glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
-  srand(time(NULL));
+  srand(glfwGetTime());
 
   initialize_columns();
   generate_random_cells();
-
-  struct texture texture = load_texture("sprite.jpg");
 
   GLuint shader_id = compile_shaders("shaders/vs.glsl", "shaders/fs.glsl");
   glUseProgram(shader_id);
@@ -527,15 +502,10 @@ main(
         } else {
           cells[ci][ri].position.y += columns[ci].speed / 10.0f;
         }
-
-        draw_texture(
-          texture,
-          cell.value,
-          cell.position.x,
-          cell.position.y
-        );
       }
     }
+
+    draw_bulk(COLUMN_COUNT, ROW_COUNT, cells);
 
     if (((refresh_columns_frame_counter / 100) % 2) == 1) {
       refresh_columns_frame_counter = 0;

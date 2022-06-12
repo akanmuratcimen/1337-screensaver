@@ -66,6 +66,30 @@ load_texture(
   return texture;
 }
 
+struct texture_offset
+get_texture_offset(
+  const char c
+) {
+  struct texture_offset texture_offset;
+
+  switch (c) {
+    case '1':
+      texture_offset.x = 0.0f;
+      texture_offset.width = 57.0f;
+      break;
+    case '3':
+      texture_offset.x = 72.0f;
+      texture_offset.width = 113.0f;
+      break;
+    case '7':
+      texture_offset.x = 188.0f;
+      texture_offset.width = 112.0f;
+      break;
+  }
+
+  return texture_offset;
+}
+
 void
 draw_texture(
   struct texture texture,
@@ -73,40 +97,24 @@ draw_texture(
   float x,
   float y
 ) {
-  float tex_coord_x_start = 0.0f;
-  float tex_coord_x_end = 0.0f;
-
-  switch (c) {
-    case '1':
-      tex_coord_x_start = 0.0f;
-      tex_coord_x_end = 57.0f;
-      break;
-    case '3':
-      tex_coord_x_start = 72.0f;
-      tex_coord_x_end = 185.0f;
-      break;
-    case '7':
-      tex_coord_x_start = 188.0f;
-      tex_coord_x_end = 300.0f;
-      break;
-  }
+  struct texture_offset texture_offset = get_texture_offset(c);
 
   float vertices[] = {
     // bottom right
-    x + tex_coord_x_end - tex_coord_x_start, y + texture.height, 0.0f,
-    tex_coord_x_end / texture.width, 1.0f,
+    x + texture_offset.width, y + texture.height,
+    (texture_offset.x + texture_offset.width) / texture.width, 1.0f,
 
     // top right
-    x + tex_coord_x_end - tex_coord_x_start, y, 0.0f,
-    tex_coord_x_end / texture.width, 0.0f,
+    x + texture_offset.width, y,
+    (texture_offset.x + texture_offset.width) / texture.width, 0.0f,
 
     // top left
-    x, y, 0.0f,
-    tex_coord_x_start / texture.width, 0.0f,
+    x, y,
+    texture_offset.x / texture.width, 0.0f,
 
     // bottom left
-    x, y + texture.height, 0.0f,
-    tex_coord_x_start / texture.width, 1.0f
+    x, y + texture.height,
+    texture_offset.x / texture.width, 1.0f
   };
 
   unsigned int indices[] = {
@@ -142,10 +150,10 @@ draw_texture(
 
   glVertexAttribPointer(
     0,
-    3,
+    2,
     GL_FLOAT,
     GL_FALSE,
-    5 * sizeof(float),
+    4 * sizeof(float),
     (void *) 0
   );
 
@@ -156,8 +164,8 @@ draw_texture(
     2,
     GL_FLOAT,
     GL_FALSE,
-    5 * sizeof(float),
-    (void *) (3 * sizeof(float))
+    4 * sizeof(float),
+    (void *) (2 * sizeof(float))
   );
 
   glEnableVertexAttribArray(1);
@@ -169,5 +177,33 @@ draw_texture(
   glDeleteVertexArrays(1, &VAO);
   glDeleteBuffers(1, &VBO);
   glDeleteBuffers(1, &EBO);
+}
+
+struct texture texture;
+static bool texture_loaded = false;
+
+void
+draw_bulk(
+  int column_count,
+  int row_count,
+  struct cell cells[column_count][row_count]
+) {
+  if (!texture_loaded) {
+    texture = load_texture("sprite.jpg");
+    texture_loaded = true;
+  }
+
+  for (int column = 0; column < column_count; column++) {
+    for (int row = 0; row < row_count; row++) {
+      struct cell cell = cells[column][row];
+
+      draw_texture(
+        texture,
+        cell.value,
+        cell.position.x,
+        cell.position.y
+      );
+    }
+  }
 }
 

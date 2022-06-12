@@ -1,23 +1,13 @@
 #ifndef TEXTURE_H
 #define TEXTURE_H
 
-struct texture {
-  unsigned int id;
-  int width;
-  int height;
-};
-
-struct texture
-load_texture(
-  const char *file_name
-);
+#include "core.h"
 
 void
-draw_texture(
-  struct texture texture,
-  const char c,
-  float x,
-  float y
+draw_bulk(
+  int column_count,
+  int row_count,
+  struct cell cells[column_count][row_count]
 );
 
 #endif
