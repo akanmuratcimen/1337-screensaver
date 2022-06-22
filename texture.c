@@ -44,17 +44,6 @@ load_texture(
 
   glGenerateMipmap(GL_TEXTURE_2D);
 
-  glVertexAttribPointer(
-    2,
-    2,
-    GL_FLOAT,
-    GL_FALSE,
-    8 * sizeof(float),
-    (void *) (6 * sizeof(float))
-  );
-
-  glEnableVertexAttribArray(2);
-
   struct texture texture = {
     .id = id,
     .width = width,
@@ -66,70 +55,76 @@ load_texture(
   return texture;
 }
 
-struct texture_offset
-get_texture_offset(
-  const char c
-) {
-  struct texture_offset texture_offset;
-
-  switch (c) {
-    case '1':
-      texture_offset.x = 0.0f;
-      texture_offset.width = 57.0f;
-      break;
-    case '3':
-      texture_offset.x = 72.0f;
-      texture_offset.width = 113.0f;
-      break;
-    case '7':
-      texture_offset.x = 188.0f;
-      texture_offset.width = 112.0f;
-      break;
-  }
-
-  return texture_offset;
-}
+struct texture texture;
+static bool texture_loaded = false;
 
 void
-draw_texture(
-  struct texture texture,
-  const char c,
-  float x,
-  float y
+draw_bulk(
+  const int column_count,
+  const int row_count,
+  struct cell cells[column_count][row_count]
 ) {
-  struct texture_offset texture_offset = get_texture_offset(c);
+  if (!texture_loaded) {
+    texture = load_texture("sprite.jpg");
+    texture_loaded = true;
+  }
+
+  float cell_size = 150.0f;
+  float v[column_count * row_count][4];
+
+  int i = 0;
+  for (int column = 0; column < column_count; column++) {
+    for (int row = 0; row < row_count; row++, i++) {
+      struct cell cell = cells[column][row];
+
+      v[i][0] = cell.position.x;
+      v[i][1] = cell.position.y;
+
+      int tex_mul = 0;
+
+      switch (cell.value) {
+        case '1': tex_mul = 0; break;
+        case '3': tex_mul = 1; break;
+        case '7': tex_mul = 2; break;
+      }
+
+      v[i][2] = tex_mul * cell_size / texture.width;
+      v[i][3] = 0.0f;
+    }
+  }
+
+  unsigned int iVBO;
+
+  glGenBuffers(1, &iVBO);
+  glBindBuffer(GL_ARRAY_BUFFER, iVBO);
+
+  glBufferData(
+    GL_ARRAY_BUFFER,
+    sizeof(float) * 4 * column_count * row_count,
+    &v,
+    GL_STATIC_DRAW
+  );
+
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  float tx = cell_size / texture.width;
+  float ty = cell_size / texture.height;
 
   float vertices[] = {
-    // bottom right
-    x + texture_offset.width, y + texture.height,
-    (texture_offset.x + texture_offset.width) / texture.width, 1.0f,
+    0.0f, cell_size,       0.0f, ty,   // bottom left
+    cell_size, 0.0f,       tx, 0.0f,   // top right
+    0.0f, 0.0f,            0.0f, 0.0f, // top left
 
-    // top right
-    x + texture_offset.width, y,
-    (texture_offset.x + texture_offset.width) / texture.width, 0.0f,
-
-    // top left
-    x, y,
-    texture_offset.x / texture.width, 0.0f,
-
-    // bottom left
-    x, y + texture.height,
-    texture_offset.x / texture.width, 1.0f
+    0.0f, cell_size,       0.0f, ty,   // bottom left
+    cell_size, 0.0f,       tx, 0.0f,   // top right
+    cell_size, cell_size,  tx, ty      // bottom right
   };
 
-  unsigned int indices[] = {
-    0, 1, 2,
-    2, 3, 0
-  };
-
-  unsigned int VAO, VBO, EBO;
+  unsigned int VAO, VBO;
 
   glGenVertexArrays(1, &VAO);
   glGenBuffers(1, &VBO);
-  glGenBuffers(1, &EBO);
-
   glBindVertexArray(VAO);
-
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
   glBufferData(
@@ -139,14 +134,7 @@ draw_texture(
     GL_STATIC_DRAW
   );
 
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-
-  glBufferData(
-    GL_ELEMENT_ARRAY_BUFFER,
-    sizeof(indices),
-    indices,
-    GL_STATIC_DRAW
-  );
+  glEnableVertexAttribArray(0);
 
   glVertexAttribPointer(
     0,
@@ -154,10 +142,23 @@ draw_texture(
     GL_FLOAT,
     GL_FALSE,
     4 * sizeof(float),
-    (void *) 0
+    (void *)0
   );
 
-  glEnableVertexAttribArray(0);
+  glEnableVertexAttribArray(2);
+
+  glVertexAttribPointer(
+    2,
+    2,
+    GL_FLOAT,
+    GL_FALSE,
+    4 * sizeof(float),
+    (void *)(2 * sizeof(float))
+  );
+
+  glEnableVertexAttribArray(1);
+
+  glBindBuffer(GL_ARRAY_BUFFER, iVBO);
 
   glVertexAttribPointer(
     1,
@@ -165,45 +166,26 @@ draw_texture(
     GL_FLOAT,
     GL_FALSE,
     4 * sizeof(float),
-    (void *) (2 * sizeof(float))
+    (void *)0
   );
 
-  glEnableVertexAttribArray(1);
+  glVertexAttribDivisor(1, 1);
 
-  glBindTexture(GL_TEXTURE_2D, texture.id);
+  glEnableVertexAttribArray(3);
+
+  glVertexAttribPointer(
+    3,
+    2,
+    GL_FLOAT,
+    GL_FALSE,
+    4 * sizeof(float),
+    (void *)(2 * sizeof(float))
+  );
+
+  glVertexAttribDivisor(3, 1);
+
   glBindVertexArray(VAO);
-  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-  glDeleteVertexArrays(1, &VAO);
-  glDeleteBuffers(1, &VBO);
-  glDeleteBuffers(1, &EBO);
-}
-
-struct texture texture;
-static bool texture_loaded = false;
-
-void
-draw_bulk(
-  int column_count,
-  int row_count,
-  struct cell cells[column_count][row_count]
-) {
-  if (!texture_loaded) {
-    texture = load_texture("sprite.jpg");
-    texture_loaded = true;
-  }
-
-  for (int column = 0; column < column_count; column++) {
-    for (int row = 0; row < row_count; row++) {
-      struct cell cell = cells[column][row];
-
-      draw_texture(
-        texture,
-        cell.value,
-        cell.position.x,
-        cell.position.y
-      );
-    }
-  }
+  glDrawArraysInstanced(GL_TRIANGLES, 0, 6, column_count * row_count);
+  glBindVertexArray(0);
 }
 

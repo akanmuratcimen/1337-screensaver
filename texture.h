@@ -5,8 +5,8 @@
 
 void
 draw_bulk(
-  int column_count,
-  int row_count,
+  const int column_count,
+  const int row_count,
   struct cell cells[column_count][row_count]
 );
 

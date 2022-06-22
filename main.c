@@ -18,7 +18,7 @@
 #define BG_COLOR 12.0f/255.0f, 12.0f/255.0f, 245.0f/255.0f, 1.0f
 #define FONT_COLOR 5.0f/255.0f, 226.0f/255.0f, 115.0f/255.0f, 1.0f
 
-#define COLUMN_COUNT 20
+#define COLUMN_COUNT 30
 #define ROW_COUNT 20
 
 #define MAX(x, y) (x > y ? x : y)
@@ -599,11 +599,11 @@ init_scaling(
     speed_min = 18;
     speed_max = speed_min * 2;
     aligned_speed = speed_min * 0.15f;
-    line_height = 170;
+    line_height = 150.0f * 1.25f;
     match_threshold = 36.0f;
     is_aligned_threshold = 5.0f;
     screen_offset_x = -30.0f;
-    char_width = 140.0f;
+    char_width = 150.0f;
     highlight_rect_width = char_width;
     highlight_rect_height = 120;
     highlight_rect_offset_x = -20;
