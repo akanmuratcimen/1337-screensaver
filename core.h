@@ -37,10 +37,14 @@ struct cell {
 struct column {
   float speed;
   bool is_highlighting;
-  int highlighting_frame_counter;
+  float highlighting_time_start;
   float top_position;
   int highlighting_row_index;
 };
 
+struct window_size {
+  int width;
+  int height;
+};
 
 #endif

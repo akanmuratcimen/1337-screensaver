@@ -1,9 +1,91 @@
 #include <GL/glew.h>
+#include <cglm/cglm.h>
 
 #include "texture.h"
+#include "shader_loader.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+
+static bool rect_shader_loaded = false;
+GLuint rect_shader_id;
+
+void
+draw_rectangle(
+  const float x,
+  const float y,
+  const float w,
+  const float h,
+  struct window_size window_size
+) {
+  if (!rect_shader_loaded) {
+    rect_shader_id = compile_shaders(
+      "shaders/rect_vs.glsl",
+      "shaders/rect_fs.glsl"
+    );
+
+    rect_shader_loaded = true;
+  }
+
+  glUseProgram(rect_shader_id);
+
+  mat4 transform;
+  glm_mat4_identity(transform);
+
+  glm_ortho(
+    0.0f,
+    window_size.width,
+    window_size.height,
+    0.0f,
+    -1.0f,
+    1.0f,
+    transform
+  );
+
+  glUniformMatrix4fv(1, 1, GL_FALSE, transform[0]);
+
+  float vertices[] = {
+    x, y,
+    x + w, y + h,
+    x, y + h,
+
+    x, y,
+    x + w, y + h,
+    x + w, y
+  };
+
+  unsigned int VAO, VBO;
+
+  glGenVertexArrays(1, &VAO);
+  glGenBuffers(1, &VBO);
+  glBindVertexArray(VAO);
+  glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+  glBufferData(
+    GL_ARRAY_BUFFER,
+    sizeof(vertices),
+    vertices,
+    GL_STATIC_DRAW
+  );
+
+  glEnableVertexAttribArray(0);
+
+  glVertexAttribPointer(
+    0,
+    2,
+    GL_FLOAT,
+    GL_FALSE,
+    2 * sizeof(float),
+    (void *) 0
+  );
+
+  glBindVertexArray(VAO);
+  glDrawArrays(GL_TRIANGLES, 0, 6);
+  glBindVertexArray(0);
+
+  glDeleteVertexArrays(1, &VAO);
+  glDeleteBuffers(1, &VBO);
+}
 
 struct texture
 load_texture(
@@ -33,14 +115,17 @@ load_texture(
   glTexImage2D(
     GL_TEXTURE_2D,
     0,
-    GL_RGB,
+    GL_RGBA,
     width,
     height,
     0,
-    GL_RGB,
+    GL_RGBA,
     GL_UNSIGNED_BYTE,
     data
   );
+
+  glEnable( GL_BLEND );
+  glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 
   glGenerateMipmap(GL_TEXTURE_2D);
 
@@ -58,16 +143,46 @@ load_texture(
 struct texture texture;
 static bool texture_loaded = false;
 
+static bool char_shader_loaded = false;
+GLuint char_shader_id;
+
 void
 draw_bulk(
   const int column_count,
   const int row_count,
-  struct cell cells[column_count][row_count]
+  struct cell cells[column_count][row_count],
+  struct window_size window_size
 ) {
   if (!texture_loaded) {
-    texture = load_texture("sprite.jpg");
+    texture = load_texture("sprite.png");
     texture_loaded = true;
   }
+
+  if (!char_shader_loaded) {
+    char_shader_id = compile_shaders(
+      "shaders/char_vs.glsl",
+      "shaders/char_fs.glsl"
+    );
+
+    char_shader_loaded = true;
+  }
+
+  glUseProgram(char_shader_id);
+
+  mat4 transform;
+  glm_mat4_identity(transform);
+
+  glm_ortho(
+    0.0f,
+    window_size.width,
+    window_size.height,
+    0.0f,
+    -1.0f,
+    1.0f,
+    transform
+  );
+
+  glUniformMatrix4fv(4, 1, GL_FALSE, transform[0]);
 
   float cell_size = 150.0f;
   float v[column_count * row_count][4];
@@ -142,7 +257,7 @@ draw_bulk(
     GL_FLOAT,
     GL_FALSE,
     4 * sizeof(float),
-    (void *)0
+    (void *) 0
   );
 
   glEnableVertexAttribArray(2);
@@ -153,7 +268,7 @@ draw_bulk(
     GL_FLOAT,
     GL_FALSE,
     4 * sizeof(float),
-    (void *)(2 * sizeof(float))
+    (void *) (2 * sizeof(float))
   );
 
   glEnableVertexAttribArray(1);
@@ -166,7 +281,7 @@ draw_bulk(
     GL_FLOAT,
     GL_FALSE,
     4 * sizeof(float),
-    (void *)0
+    (void *) 0
   );
 
   glVertexAttribDivisor(1, 1);
@@ -179,7 +294,7 @@ draw_bulk(
     GL_FLOAT,
     GL_FALSE,
     4 * sizeof(float),
-    (void *)(2 * sizeof(float))
+    (void *) (2 * sizeof(float))
   );
 
   glVertexAttribDivisor(3, 1);
@@ -187,5 +302,9 @@ draw_bulk(
   glBindVertexArray(VAO);
   glDrawArraysInstanced(GL_TRIANGLES, 0, 6, column_count * row_count);
   glBindVertexArray(0);
+
+  glDeleteVertexArrays(1, &VAO);
+  glDeleteBuffers(1, &VBO);
+  glDeleteBuffers(1, &iVBO);
 }
 

@@ -2,13 +2,13 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <math.h>
+#include <time.h>
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <cglm/cglm.h>
 
 #include "core.h"
-#include "shader_loader.h"
 #include "texture.h"
 
 #define FULLSCREEN 0
@@ -28,11 +28,6 @@
 extern "C" {
 #endif
 
-struct window_size {
-  int width;
-  int height;
-} window_size;
-
 const char chars[] = { '1', '3', '7' };
 
 float line_height;
@@ -41,12 +36,9 @@ float is_aligned_threshold;
 float aligned_speed;
 float screen_offset_x;
 float char_width;
-int highlight_rect_width;
-int highlight_rect_height;
-int highlight_rect_offset_x;
-int highlight_rect_offset_y;
-int speed_min;
-int speed_max;
+int speed;
+
+struct window_size window_size;
 
 struct cell cells[COLUMN_COUNT][ROW_COUNT];
 struct column columns[COLUMN_COUNT];
@@ -125,11 +117,19 @@ init_scaling(
 );
 
 int
-get_random_number(
+get_random_number_int(
   const int min,
   const int max
 ) {
   return (rand() % (abs(max - min) + 1) + min);
+}
+
+float
+get_random_number_float(
+  const float min,
+  const float max
+) {
+  return min + (rand() / (float) RAND_MAX) * (max - min);
 }
 
 void
@@ -137,7 +137,7 @@ initialize_columns(
   void
 ) {
   for (int ci = 0; ci < COLUMN_COUNT; ci++) {
-    columns[ci].speed = get_random_number(speed_min, speed_max);
+    columns[ci].speed = get_random_number_float(speed, speed * 2.0f);
     columns[ci].top_position = 9999.9f;
   }
 }
@@ -155,7 +155,7 @@ generate_random_cells(
 
       struct cell cell;
 
-      cell.value = chars[get_random_number(0, 2)];
+      cell.value = chars[get_random_number_int(0, 2)];
       cell.column = ci;
       cell.row = ri;
       cell.position = position;
@@ -237,6 +237,21 @@ is_mouse_moved(
     current_position.y != initial_position.y;
 }
 
+float
+get_time(
+  void
+) {
+  struct timespec ts = { 0 };
+
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+
+  unsigned long long int time =
+    (unsigned long long int)ts.tv_sec * 1000000000LLU +
+    (unsigned long long int)ts.tv_nsec;
+
+  return (float)(time) * 1e-9;
+}
+
 int
 main(
 #if defined(_WIN32)
@@ -271,51 +286,29 @@ main(
 
   glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
-  srand(glfwGetTime());
+  srand(get_time());
 
   initialize_columns();
   generate_random_cells();
 
-  GLuint shader_id = compile_shaders("shaders/vs.glsl", "shaders/fs.glsl");
-  glUseProgram(shader_id);
+  float refresh_columns_timer = get_time();
+  float initialization_timer = get_time();
 
-  int refresh_columns_frame_counter = 0;
-  int initialization_frame_counter = 0;
   bool warmup = false;
   struct vector2 initial_mouse_position;
 
-
-  mat4 transform;
-  glm_mat4_identity(transform);
-
-  glm_ortho(
-    0.0f,
-    window_size.width,
-    window_size.height,
-    0.0f,
-    -1.0f,
-    1.0f,
-    transform
-  );
-
-  unsigned int transform_location =
-    glGetUniformLocation(
-      shader_id,
-      "transform"
-    );
-
-  glUniformMatrix4fv(transform_location, 1, GL_FALSE, transform[0]);
+  float previous_time = get_time();
+  float current_time = 0.0f;
+  float delta_time = 0.0f;
 
   while (!glfwWindowShouldClose(window)) {
-    refresh_columns_frame_counter++;
+    current_time = get_time();
+    delta_time = current_time - previous_time;
+    previous_time = current_time;
 
-    if (!warmup) {
-      if (initialization_frame_counter > 30) {
-        warmup = true;
-        initial_mouse_position = get_cursor_position();
-      } else {
-        initialization_frame_counter++;
-      }
+    if (!warmup && get_time() - initialization_timer > 3.0f) {
+      warmup = true;
+      initial_mouse_position = get_cursor_position();
     }
 
     if (!warmup) {
@@ -327,7 +320,7 @@ main(
       is_any_key_pressed ||
       is_mouse_moved(initial_mouse_position)
     ) {
-      //goto exit;
+      goto exit;
     }
 
     for (int ci = 0; ci < COLUMN_COUNT - 3; ci++) {
@@ -420,6 +413,13 @@ main(
         columns[ci + 2].is_highlighting = true;
         columns[ci + 3].is_highlighting = true;
 
+        float time = get_time();
+
+        columns[ci + 0].highlighting_time_start = time;
+        columns[ci + 1].highlighting_time_start = time;
+        columns[ci + 2].highlighting_time_start = time;
+        columns[ci + 3].highlighting_time_start = time;
+
         columns[ci + 0].highlighting_row_index = r0i;
         columns[ci + 1].highlighting_row_index = r1i;
         columns[ci + 2].highlighting_row_index = r2i;
@@ -460,10 +460,10 @@ main(
           ) <= is_aligned_threshold
         ) {
           for (int ri = 0; ri < ROW_COUNT; ri++) {
-            cells[ci + 0][ri].position.y += aligned_speed;
-            cells[ci + 1][ri].position.y += aligned_speed;
-            cells[ci + 2][ri].position.y += aligned_speed;
-            cells[ci + 3][ri].position.y += aligned_speed;
+            cells[ci + 0][ri].position.y += aligned_speed * delta_time;
+            cells[ci + 1][ri].position.y += aligned_speed * delta_time;
+            cells[ci + 2][ri].position.y += aligned_speed * delta_time;
+            cells[ci + 3][ri].position.y += aligned_speed * delta_time;
           }
         }
       }
@@ -471,13 +471,11 @@ main(
 
     for (int ci = 0; ci < COLUMN_COUNT; ci++) {
       if (columns[ci].is_highlighting) {
-        columns[ci].highlighting_frame_counter++;
-
-        if (columns[ci].highlighting_frame_counter > 60) {
+        if (get_time() - columns[ci].highlighting_time_start > 2.0f) {
           cells[ci][columns[ci].highlighting_row_index].is_highlighted = true;
           cells[ci][columns[ci].highlighting_row_index].pause_position = -1.0f;
 
-          columns[ci].highlighting_frame_counter = 0;
+          columns[ci].highlighting_time_start = -1.0f;
           columns[ci].is_highlighting = false;
           columns[ci].highlighting_row_index = -1;
         }
@@ -491,24 +489,24 @@ main(
           cell.position.y >= cell.pause_position
         ) {
           if (cell.is_highlighting && !cell.is_highlighted) {
-            //DrawRectangle(
-            //  cell.position.x + highlight_rect_offset_x,
-            //  cell.position.y + highlight_rect_offset_y,
-            //  highlight_rect_width,
-            //  highlight_rect_height,
-            //  WHITE
-            //);
+            draw_rectangle(
+              cell.position.x,
+              cell.position.y,
+              char_width,
+              char_width,
+              window_size
+            );
           };
         } else {
-          cells[ci][ri].position.y += columns[ci].speed / 10.0f;
+          cells[ci][ri].position.y += columns[ci].speed * delta_time;
         }
       }
     }
 
-    draw_bulk(COLUMN_COUNT, ROW_COUNT, cells);
+    draw_bulk(COLUMN_COUNT, ROW_COUNT, cells, window_size);
 
-    if (((refresh_columns_frame_counter / 100) % 2) == 1) {
-      refresh_columns_frame_counter = 0;
+    if (get_time() - refresh_columns_timer >= 2.0f) {
+      refresh_columns_timer = get_time();
 
       initialize_columns();
 
@@ -534,7 +532,7 @@ main(
           cells[ci][ri].is_highlighted = false;
           cells[ci][ri].is_highlighting = false;
           cells[ci][ri].position.y = columns[ci].top_position;
-          cells[ci][ri].value = chars[get_random_number(0, 2)];
+          cells[ci][ri].value = chars[get_random_number_int(0, 2)];
         }
       }
     }
@@ -557,71 +555,23 @@ init_scaling(
   const int screen_width
 ) {
   if (screen_width <= 1280) {
-    speed_min = 8;
-    speed_max = speed_min * 2;
-    aligned_speed = speed_min * 0.15f;
-    line_height = 70;
-    match_threshold = 16.0f;
-    is_aligned_threshold = 4.0f;
-    screen_offset_x = -10.0f;
-    char_width = 66.0f;
-    highlight_rect_width = char_width;
-    highlight_rect_height = 64;
-    highlight_rect_offset_x = -16;
-    highlight_rect_offset_y = 4;
-  } else if (screen_width <= 1440) {
-    speed_min = 14;
-    speed_max = speed_min * 2;
-    aligned_speed = speed_min * 0.15f;
-    line_height = 80;
-    match_threshold = 22.0f;
-    is_aligned_threshold = 4.0f;
-    screen_offset_x = -16.0f;
-    char_width = 74.0f;
-    highlight_rect_width = char_width;
-    highlight_rect_height = 78;
-    highlight_rect_offset_x = -16;
-    highlight_rect_offset_y = 4;
-  } else if (screen_width <= 2048) {
-    speed_min = 14;
-    speed_max = speed_min * 2;
-    aligned_speed = speed_min * 0.15f;
-    line_height = 90;
-    match_threshold = 26.0f;
-    is_aligned_threshold = 4.0f;
-    screen_offset_x = -16.0f;
-    char_width = 86.0f;
-    highlight_rect_width = char_width;
-    highlight_rect_height = 84;
-    highlight_rect_offset_x = -18;
-    highlight_rect_offset_y = 4;
-  } else if (screen_width <= 2560) {
-    speed_min = 18;
-    speed_max = speed_min * 2;
-    aligned_speed = speed_min * 0.15f;
-    line_height = 150.0f * 1.25f;
-    match_threshold = 36.0f;
-    is_aligned_threshold = 5.0f;
-    screen_offset_x = -30.0f;
     char_width = 150.0f;
-    highlight_rect_width = char_width;
-    highlight_rect_height = 120;
-    highlight_rect_offset_x = -20;
-    highlight_rect_offset_y = 12;
+  } else if (screen_width <= 1440) {
+    char_width = 150.0f;
+  } else if (screen_width <= 2048) {
+    char_width = 150.0f;
+  } else if (screen_width <= 2560) {
+    char_width = 150.0f;
   } else {
-    speed_min = 24;
-    speed_max = speed_min * 2;
-    aligned_speed = speed_min * 0.15f;
-    line_height = 210.0f;
-    match_threshold = 40.0f;
-    is_aligned_threshold = 5.0f;
-    screen_offset_x = -40.0f;
-    char_width = 170.0f;
-    highlight_rect_width = 170;
-    highlight_rect_height = 180;
-    highlight_rect_offset_x = -36;
-    highlight_rect_offset_y = 12;
+    char_width = 150.0f;
   }
+
+  speed = 100;
+  aligned_speed = speed * 1.0f;
+  line_height = char_width * 1.25f;
+  match_threshold = char_width * 0.45f;
+  is_aligned_threshold = char_width * 0.1f;
+  screen_offset_x = char_width * 0.4f * -1.0f;
 }
 
 #if defined(__cplusplus)
