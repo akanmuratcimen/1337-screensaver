@@ -12,3 +12,4 @@ void main() {
   gl_Position = transform * vec4(position + offset, 0.0f, 1.0f);
   out_texture_coord = tex_coord + tex_offset;
 }
+

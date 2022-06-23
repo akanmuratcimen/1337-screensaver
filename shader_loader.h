@@ -20,24 +20,9 @@ show_gl_shader_compilation_error(
 
 GLuint
 load_shader(
-  const char *path,
+  unsigned char *buffer,
   const GLenum shaderType
 ) {
-  FILE *f = fopen (path, "rb");
-
-  if (!f) {
-    return -1;
-  }
-
-  fseek(f, 0, SEEK_END);
-  long length = ftell(f);
-  fseek(f, 0, SEEK_SET);
-  char *buffer = (char *) malloc(length + 1);
-
-  if (buffer) {
-    fread(buffer, 1, length, f);
-  }
-
   int compilationStatus;
 
   GLuint shader = glCreateShader(shaderType);
@@ -51,21 +36,18 @@ load_shader(
     show_gl_shader_compilation_error(shader);
   }
 
-  fclose(f);
-  free(buffer);
-
   return shader;
 }
 
 GLuint
 compile_shaders(
-  const char *vs_file_path,
-  const char *fs_file_path
+  unsigned char *vs_file_buffer,
+  unsigned char *fs_file_buffer
 ) {
   GLuint program = glCreateProgram();
 
-  GLuint vs = load_shader(vs_file_path, GL_VERTEX_SHADER);
-  GLuint fs = load_shader(fs_file_path, GL_FRAGMENT_SHADER);
+  GLuint vs = load_shader(vs_file_buffer, GL_VERTEX_SHADER);
+  GLuint fs = load_shader(fs_file_buffer, GL_FRAGMENT_SHADER);
 
   glAttachShader(program, vs);
   glAttachShader(program, fs);

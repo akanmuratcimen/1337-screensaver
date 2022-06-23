@@ -1,5 +1,5 @@
-#ifndef TEXTURE_H
-#define TEXTURE_H
+#ifndef DRAW_H
+#define DRAW_H
 
 #include "core.h"
 
@@ -19,7 +19,7 @@ draw_bulk(
   struct cell cells[column_count][row_count],
   struct window_size window_size,
   const float cell_size,
-  const char *texture_file_name
+  const char *texture_name
 );
 
 #endif

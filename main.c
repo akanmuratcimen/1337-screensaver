@@ -9,14 +9,13 @@
 #include <cglm/cglm.h>
 
 #include "core.h"
-#include "texture.h"
+#include "draw.h"
 
-#define FULLSCREEN 0
-#define EXIT_ON_INPUT 0
+#define FULLSCREEN 1
+#define EXIT_ON_INPUT 1
 #define WINDOW_TITLE "1337 Screensaver"
 
 #define BG_COLOR 12.0f/255.0f, 12.0f/255.0f, 245.0f/255.0f, 1.0f
-#define FONT_COLOR 5.0f/255.0f, 226.0f/255.0f, 115.0f/255.0f, 1.0f
 
 #define MAX(x, y) (x > y ? x : y)
 #define MIN(x, y) (x < y ? x : y)
@@ -33,7 +32,7 @@ float is_aligned_threshold;
 float aligned_speed;
 float screen_offset_x;
 float char_width;
-char *texture_file_name = NULL;
+char *texture_name;
 int speed;
 
 struct window_size window_size;
@@ -75,8 +74,8 @@ create_window(
 ) {
   glfwInit();
 
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
   GLFWmonitor* monitor = glfwGetPrimaryMonitor();
@@ -552,7 +551,7 @@ main(
       cells,
       window_size,
       char_width,
-      texture_file_name
+      texture_name
     );
 
     if (get_time() - refresh_columns_timer >= 4.0f) {
@@ -606,15 +605,15 @@ init_scaling(
 ) {
   if (screen_width <= 1920) {
     char_width = 110.0f;
-    texture_file_name = "sprite_1k.png";
+    texture_name = "1k";
     speed = 70;
   } else if (screen_width <= 2560) {
     char_width = 150.0f;
-    texture_file_name = "sprite_2k.png";
+    texture_name = "2k";
     speed = 100;
   } else {
     char_width = 230.0f;
-    texture_file_name = "sprite_4k.png";
+    texture_name = "4k";
     speed = 120;
   }
 

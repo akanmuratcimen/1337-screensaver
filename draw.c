@@ -1,11 +1,17 @@
 #include <GL/glew.h>
 #include <cglm/cglm.h>
 
-#include "texture.h"
+#include "draw.h"
 #include "shader_loader.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+
+#include "shaders/char_vs.h"
+#include "shaders/char_fs.h"
+
+#include "shaders/rect_vs.h"
+#include "shaders/rect_fs.h"
 
 static bool rect_shader_loaded = false;
 GLuint rect_shader_id;
@@ -20,8 +26,8 @@ draw_rectangle(
 ) {
   if (!rect_shader_loaded) {
     rect_shader_id = compile_shaders(
-      "shaders/rect_vs.glsl",
-      "shaders/rect_fs.glsl"
+      shaders_rect_vs_glsl,
+      shaders_rect_fs_glsl
     );
 
     rect_shader_loaded = true;
@@ -87,17 +93,36 @@ draw_rectangle(
   glDeleteBuffers(1, &VBO);
 }
 
+#include "textures/sprite_1k.h"
+#include "textures/sprite_2k.h"
+#include "textures/sprite_4k.h"
+
 struct texture
 load_texture(
-  const char *file_name
+  const char *texture_name
 ) {
+  unsigned char *texture_data = NULL;
+  unsigned int texture_data_len = 0;
+
+  if (strcmp(texture_name, "1k") == 0) {
+    texture_data = textures_sprite_1k_png;
+    texture_data_len = textures_sprite_1k_png_len;
+  } else if (strcmp(texture_name, "2k") == 0) {
+    texture_data = textures_sprite_2k_png;
+    texture_data_len = textures_sprite_2k_png_len;
+  } else if (strcmp(texture_name, "4k") == 0) {
+    texture_data = textures_sprite_4k_png;
+    texture_data_len = textures_sprite_4k_png_len;
+  }
+
   int width;
   int height;
   int channels;
 
   unsigned char *data =
-    stbi_load(
-      file_name,
+    stbi_load_from_memory(
+      texture_data,
+      texture_data_len,
       &width,
       &height,
       &channels,
@@ -162,8 +187,8 @@ draw_bulk(
 
   if (!char_shader_loaded) {
     char_shader_id = compile_shaders(
-      "shaders/char_vs.glsl",
-      "shaders/char_fs.glsl"
+      shaders_char_vs_glsl,
+      shaders_char_fs_glsl
     );
 
     char_shader_loaded = true;
