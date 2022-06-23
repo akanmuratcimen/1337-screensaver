@@ -152,10 +152,11 @@ draw_bulk(
   const int row_count,
   struct cell cells[column_count][row_count],
   struct window_size window_size,
-  const float cell_size
+  const float cell_size,
+  const char *texture_file_name
 ) {
   if (!texture_loaded) {
-    texture = load_texture("sprite.png");
+    texture = load_texture(texture_file_name);
     texture_loaded = true;
   }
 

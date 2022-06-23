@@ -12,12 +12,11 @@
 #include "texture.h"
 
 #define FULLSCREEN 0
-#define FPS_LIMIT 30
+#define EXIT_ON_INPUT 0
 #define WINDOW_TITLE "1337 Screensaver"
 
 #define BG_COLOR 12.0f/255.0f, 12.0f/255.0f, 245.0f/255.0f, 1.0f
 #define FONT_COLOR 5.0f/255.0f, 226.0f/255.0f, 115.0f/255.0f, 1.0f
-
 
 #define MAX(x, y) (x > y ? x : y)
 #define MIN(x, y) (x < y ? x : y)
@@ -34,6 +33,7 @@ float is_aligned_threshold;
 float aligned_speed;
 float screen_offset_x;
 float char_width;
+char *texture_file_name = NULL;
 int speed;
 
 struct window_size window_size;
@@ -319,7 +319,7 @@ main(
     delta_time = current_time - previous_time;
     previous_time = current_time;
 
-    if (!warmup && get_time() - initialization_timer > 3.0f) {
+    if (!warmup && get_time() - initialization_timer > 2.0f) {
       warmup = true;
       initial_mouse_position = get_cursor_position();
     }
@@ -328,6 +328,8 @@ main(
       goto draw;
     }
 
+#if EXIT_ON_INPUT
+
     if (
       is_any_mouse_button_pressed ||
       is_any_key_pressed ||
@@ -335,6 +337,8 @@ main(
     ) {
       goto exit;
     }
+
+#endif
 
     for (int ci = 0; ci < column_count - 3; ci++) {
       if (columns[ci].is_highlighting) {
@@ -510,7 +514,7 @@ main(
 
     for (int ci = 0; ci < column_count; ci++) {
       if (columns[ci].is_highlighting) {
-        if (get_time() - columns[ci].highlighting_time_start > 2.0f) {
+        if (get_time() - columns[ci].highlighting_time_start > 2.4f) {
           cells[ci][columns[ci].highlighting_row_index].is_highlighted = true;
           cells[ci][columns[ci].highlighting_row_index].pause_position = -1.0f;
 
@@ -542,7 +546,14 @@ main(
       }
     }
 
-    draw_bulk(column_count, row_count, cells, window_size, char_width);
+    draw_bulk(
+      column_count,
+      row_count,
+      cells,
+      window_size,
+      char_width,
+      texture_file_name
+    );
 
     if (get_time() - refresh_columns_timer >= 4.0f) {
       refresh_columns_timer = get_time();
@@ -593,22 +604,23 @@ void
 init_scaling(
   const int screen_width
 ) {
-  if (screen_width <= 1280) {
-    char_width = 150.0f;
-  } else if (screen_width <= 1440) {
-    char_width = 150.0f;
-  } else if (screen_width <= 2048) {
-    char_width = 150.0f;
+  if (screen_width <= 1920) {
+    char_width = 110.0f;
+    texture_file_name = "sprite_1k.png";
+    speed = 70;
   } else if (screen_width <= 2560) {
     char_width = 150.0f;
+    texture_file_name = "sprite_2k.png";
+    speed = 100;
   } else {
-    char_width = 150.0f;
+    char_width = 230.0f;
+    texture_file_name = "sprite_4k.png";
+    speed = 120;
   }
 
-  speed = 100;
   aligned_speed = speed * 1.0f;
   line_height = char_width * 1.25f;
-  match_threshold = char_width * 0.45f;
+  match_threshold = char_width * 0.5f;
   is_aligned_threshold = char_width * 0.1f;
   screen_offset_x = char_width * 0.4f * -1.0f;
 }
