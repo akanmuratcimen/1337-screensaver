@@ -151,7 +151,8 @@ draw_bulk(
   const int column_count,
   const int row_count,
   struct cell cells[column_count][row_count],
-  struct window_size window_size
+  struct window_size window_size,
+  const float cell_size
 ) {
   if (!texture_loaded) {
     texture = load_texture("sprite.png");
@@ -184,7 +185,6 @@ draw_bulk(
 
   glUniformMatrix4fv(4, 1, GL_FALSE, transform[0]);
 
-  float cell_size = 150.0f;
   float v[column_count * row_count][4];
 
   int i = 0;

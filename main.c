@@ -18,8 +18,6 @@
 #define BG_COLOR 12.0f/255.0f, 12.0f/255.0f, 245.0f/255.0f, 1.0f
 #define FONT_COLOR 5.0f/255.0f, 226.0f/255.0f, 115.0f/255.0f, 1.0f
 
-#define COLUMN_COUNT 30
-#define ROW_COUNT 20
 
 #define MAX(x, y) (x > y ? x : y)
 #define MIN(x, y) (x < y ? x : y)
@@ -39,9 +37,6 @@ float char_width;
 int speed;
 
 struct window_size window_size;
-
-struct cell cells[COLUMN_COUNT][ROW_COUNT];
-struct column columns[COLUMN_COUNT];
 
 GLFWwindow *window = NULL;
 
@@ -134,20 +129,30 @@ get_random_number_float(
 
 void
 initialize_columns(
-  void
+  const int column_count,
+  struct column columns[column_count],
+  bool first_time
 ) {
-  for (int ci = 0; ci < COLUMN_COUNT; ci++) {
+  for (int ci = 0; ci < column_count; ci++) {
     columns[ci].speed = get_random_number_float(speed, speed * 2.0f);
     columns[ci].top_position = 9999.9f;
+
+    if (first_time) {
+      columns[ci].is_highlighting = false;
+      columns[ci].highlighting_row_index = -1;
+      columns[ci].highlighting_time_start = -1.0f;
+    }
   }
 }
 
 void
 generate_random_cells(
-  void
+  const int column_count,
+  const int row_count,
+  struct cell cells[column_count][row_count]
 ) {
-  for (int ci = 0; ci < COLUMN_COUNT; ci++) {
-    for (int ri = 0; ri < ROW_COUNT; ri++) {
+  for (int ci = 0; ci < column_count; ci++) {
+    for (int ri = 0; ri < row_count; ri++) {
       const struct vector2 position = {
         ci * char_width + screen_offset_x,
         ri * line_height - window_size.height
@@ -170,6 +175,7 @@ generate_random_cells(
 
 bool
 is_cell_available_to_highlight(
+  const struct column *columns,
   const struct cell cell
 ) {
   if (columns[cell.column].is_highlighting) {
@@ -197,6 +203,7 @@ is_cell_available_to_highlight(
 
 bool
 is_cells_match(
+  const struct column *columns,
   const struct cell source,
   const struct cell target,
   const char expected_char
@@ -205,7 +212,7 @@ is_cells_match(
     return false;
   }
 
-  if (!is_cell_available_to_highlight(target)) {
+  if (!is_cell_available_to_highlight(columns, target)) {
     return false;
   }
 
@@ -288,8 +295,14 @@ main(
 
   srand(get_time());
 
-  initialize_columns();
-  generate_random_cells();
+  int column_count = ceil(window_size.width / char_width);
+  int row_count = ceil(window_size.height / char_width) * 2;
+
+  struct column columns[column_count];
+  struct cell cells[column_count][row_count];
+
+  initialize_columns(column_count, columns, true);
+  generate_random_cells(column_count, row_count, cells);
 
   float refresh_columns_timer = get_time();
   float initialization_timer = get_time();
@@ -323,50 +336,76 @@ main(
       goto exit;
     }
 
-    for (int ci = 0; ci < COLUMN_COUNT - 3; ci++) {
+    for (int ci = 0; ci < column_count - 3; ci++) {
       if (columns[ci].is_highlighting) {
         continue;
       }
 
-      for (int r0i = 0; r0i < ROW_COUNT; r0i++) {
+      for (int r0i = 0; r0i < row_count; r0i++) {
         if (cells[ci][r0i].value != '1') {
           continue;
         }
 
-        if (!is_cell_available_to_highlight(cells[ci][r0i])) {
+        if (
+          !is_cell_available_to_highlight(
+            columns,
+            cells[ci][r0i]
+          )
+        ) {
           continue;
         }
 
         int r1i = 0;
-        for (; r1i < ROW_COUNT; r1i++) {
-          if (is_cells_match(cells[ci][r0i], cells[ci + 1][r1i], '3')) {
+        for (; r1i < row_count; r1i++) {
+          if (
+            is_cells_match(
+              columns,
+              cells[ci][r0i],
+              cells[ci + 1][r1i],
+              '3'
+            )
+          ) {
             break;
           }
         }
 
-        if (r1i == ROW_COUNT) {
+        if (r1i == row_count) {
           continue;
         }
 
         int r2i = 0;
-        for (; r2i < ROW_COUNT; r2i++) {
-          if (is_cells_match(cells[ci][r0i], cells[ci + 2][r2i], '3')) {
+        for (; r2i < row_count; r2i++) {
+          if (
+            is_cells_match(
+              columns,
+              cells[ci][r0i],
+              cells[ci + 2][r2i],
+              '3'
+            )
+          ) {
             break;
           }
         }
 
-        if (r2i == ROW_COUNT) {
+        if (r2i == row_count) {
           continue;
         }
 
         int r3i = 0;
-        for (; r3i < ROW_COUNT; r3i++) {
-          if (is_cells_match(cells[ci][r0i], cells[ci + 3][r3i], '7')) {
+        for (; r3i < row_count; r3i++) {
+          if (
+            is_cells_match(
+              columns,
+              cells[ci][r0i],
+              cells[ci + 3][r3i],
+              '7'
+            )
+          ) {
             break;
           }
         }
 
-        if (r3i == ROW_COUNT) {
+        if (r3i == row_count) {
           continue;
         }
 
@@ -379,25 +418,25 @@ main(
           )
         );
 
-        for (int ri = 0; ri < ROW_COUNT; ri++) {
+        for (int ri = 0; ri < row_count; ri++) {
           cells[ci + 0][ri].pause_position =
             cells[ci + 0][ri].position.y + maxY -
               cells[ci + 0][r0i].position.y;
         }
 
-        for (int ri = 0; ri < ROW_COUNT; ri++) {
+        for (int ri = 0; ri < row_count; ri++) {
           cells[ci + 1][ri].pause_position =
             cells[ci + 1][ri].position.y + maxY -
               cells[ci + 1][r1i].position.y;
         }
 
-        for (int ri = 0; ri < ROW_COUNT; ri++) {
+        for (int ri = 0; ri < row_count; ri++) {
           cells[ci + 2][ri].pause_position =
             cells[ci + 2][ri].position.y + maxY -
               cells[ci + 2][r2i].position.y;
         }
 
-        for (int ri = 0; ri < ROW_COUNT; ri++) {
+        for (int ri = 0; ri < row_count; ri++) {
           cells[ci + 3][ri].pause_position =
             cells[ci + 3][ri].position.y + maxY -
               cells[ci + 3][r3i].position.y;
@@ -431,7 +470,7 @@ main(
     glClearColor(BG_COLOR);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    for (int ci = 0; ci < COLUMN_COUNT - 3; ci++) {
+    for (int ci = 0; ci < column_count - 3; ci++) {
       struct column column0 = columns[ci + 0];
       struct column column1 = columns[ci + 1];
       struct column column2 = columns[ci + 2];
@@ -459,7 +498,7 @@ main(
             cells[ci + 3][column3.highlighting_row_index].position.y
           ) <= is_aligned_threshold
         ) {
-          for (int ri = 0; ri < ROW_COUNT; ri++) {
+          for (int ri = 0; ri < row_count; ri++) {
             cells[ci + 0][ri].position.y += aligned_speed * delta_time;
             cells[ci + 1][ri].position.y += aligned_speed * delta_time;
             cells[ci + 2][ri].position.y += aligned_speed * delta_time;
@@ -469,7 +508,7 @@ main(
       }
     }
 
-    for (int ci = 0; ci < COLUMN_COUNT; ci++) {
+    for (int ci = 0; ci < column_count; ci++) {
       if (columns[ci].is_highlighting) {
         if (get_time() - columns[ci].highlighting_time_start > 2.0f) {
           cells[ci][columns[ci].highlighting_row_index].is_highlighted = true;
@@ -481,7 +520,7 @@ main(
         }
       }
 
-      for (int ri = 0; ri < ROW_COUNT; ri++) {
+      for (int ri = 0; ri < row_count; ri++) {
         struct cell cell = cells[ci][ri];
 
         if (
@@ -491,9 +530,9 @@ main(
           if (cell.is_highlighting && !cell.is_highlighted) {
             draw_rectangle(
               cell.position.x,
-              cell.position.y,
+              cell.position.y - (char_width * 0.1f),
               char_width,
-              char_width,
+              char_width * 1.2f,
               window_size
             );
           };
@@ -503,26 +542,26 @@ main(
       }
     }
 
-    draw_bulk(COLUMN_COUNT, ROW_COUNT, cells, window_size);
+    draw_bulk(column_count, row_count, cells, window_size, char_width);
 
-    if (get_time() - refresh_columns_timer >= 2.0f) {
+    if (get_time() - refresh_columns_timer >= 4.0f) {
       refresh_columns_timer = get_time();
 
-      initialize_columns();
+      initialize_columns(column_count, columns, false);
 
-      for (int ci = 0; ci < COLUMN_COUNT; ci++) {
+      for (int ci = 0; ci < column_count; ci++) {
         if (columns[ci].is_highlighting) {
           continue;
         }
 
-        for (int ri = 0; ri < ROW_COUNT; ri++) {
+        for (int ri = 0; ri < row_count; ri++) {
           columns[ci].top_position = MIN(
             columns[ci].top_position,
             cells[ci][ri].position.y
           );
         }
 
-        for (int ri = 0; ri < ROW_COUNT; ri++) {
+        for (int ri = 0; ri < row_count; ri++) {
           if (cells[ci][ri].position.y <= window_size.height) {
             continue;
           }

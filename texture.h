@@ -17,7 +17,8 @@ draw_bulk(
   const int column_count,
   const int row_count,
   struct cell cells[column_count][row_count],
-  struct window_size window_size
+  struct window_size window_size,
+  const float cell_size
 );
 
 #endif
