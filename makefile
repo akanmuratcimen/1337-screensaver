@@ -21,6 +21,9 @@ build_resources:
 	xxd -i shaders/rect_fs.glsl > shaders/rect_fs.h
 	xxd -i shaders/rect_vs.glsl > shaders/rect_vs.h
 
+install-linux:
+	sudo cp 1337 /usr/libexec/xscreensaver/
+
 run:
 	./$(OUTPUT)
 
