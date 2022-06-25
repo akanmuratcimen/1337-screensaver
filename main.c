@@ -5,7 +5,6 @@
 #include <time.h>
 
 #include <GL/glew.h>
-#include <GLFW/glfw3.h>
 #include <cglm/cglm.h>
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -16,10 +15,6 @@
 
 #include "shaders/rect_vs.h"
 #include "shaders/rect_fs.h"
-
-#define FULLSCREEN 1
-#define EXIT_ON_INPUT 1
-#define WINDOW_TITLE "1337 Screensaver"
 
 #define BG_COLOR 12.0f/255.0f, 12.0f/255.0f, 245.0f/255.0f, 1.0f
 
@@ -41,15 +36,15 @@ struct texture_offset {
   float width;
 };
 
-struct texture
-load_texture(
-  const char *file_name
-);
-
 struct vector2 {
   float x;
   float y;
 };
+
+struct texture
+load_texture(
+  const char *file_name
+);
 
 struct cell {
   char value;
@@ -69,12 +64,13 @@ struct column {
   int highlighting_row_index;
 };
 
+const char chars[] = { '1', '3', '7' };
+
+
 struct window_size {
   int width;
   int height;
 } window_size;
-
-const char chars[] = { '1', '3', '7' };
 
 float line_height;
 float match_threshold;
@@ -85,73 +81,30 @@ float char_width;
 char *texture_name;
 int speed;
 
-GLFWwindow *window = NULL;
-
-bool is_any_key_pressed = false;
-bool is_any_mouse_button_pressed = false;
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
-void
-key_callback(
-  GLFWwindow* window,
-  int key,
-  int scancode,
-  int action,
-  int mods
-) {
-  is_any_key_pressed = true;
-}
-
-void
-mouse_button_callback(
-  GLFWwindow* window,
-  int button,
-  int action,
-  int mods
-) {
-  is_any_mouse_button_pressed = true;
-}
-
-#pragma GCC diagnostic pop
-
 void
 create_window(
   void
-) {
-  glfwInit();
+);
 
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+bool
+loop(
+  void
+);
 
-  GLFWmonitor* monitor = glfwGetPrimaryMonitor();
-  const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+void
+swap_buffers(
+  void
+);
 
-  window =
-    glfwCreateWindow(
-      mode->width,
-      mode->height,
-      "1337 Screensaver",
-      FULLSCREEN ? monitor : NULL,
-      NULL
-    );
+void
+terminate(
+  void
+);
 
-  glfwMakeContextCurrent(window);
-  glfwSetKeyCallback(window, key_callback);
-  glfwSetMouseButtonCallback(window, mouse_button_callback);
-
-  glfwSwapInterval(1);
-  glewInit();
-
-  glViewport(0, 0, mode->width, mode->height);
-
-  int width, height;
-  glfwGetWindowSize(window, &width, &height);
-
-  window_size = (struct window_size) { width, height };
-}
+void
+set_initial_mouse_position(
+  void
+);
 
 void
 init_scaling(
@@ -289,27 +242,6 @@ is_cells_match(
   return true;
 }
 
-struct vector2
-get_cursor_position(
-  void
-) {
-  double xpos, ypos;
-  glfwGetCursorPos(window, &xpos, &ypos);
-
-  return (struct vector2) { xpos, ypos };
-}
-
-bool
-is_mouse_moved(
-  const struct vector2 initial_position
-) {
-  const struct vector2 current_position = get_cursor_position();
-
-  return
-    current_position.x != initial_position.x ||
-    current_position.y != initial_position.y;
-}
-
 float
 get_time(
   void
@@ -334,30 +266,8 @@ main(
   void
 #endif
 ) {
-#if defined(_WIN32)
-
-  if (argc < 2) {
-    goto exit;
-  }
-
-  if (strcmp(argv[1], "/c") == 0) {
-    goto exit;
-  }
-
-  if (strcmp(argv[1], "/p") == 0) {
-    goto exit;
-  }
-
-  if (strcmp(argv[1], "/s") != 0) {
-    goto exit;
-  }
-
-#endif
-
   create_window();
   init_scaling(window_size.width);
-
-  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
   srand(get_time());
 
@@ -374,37 +284,24 @@ main(
   float initialization_timer = get_time();
 
   bool warmup = false;
-  struct vector2 initial_mouse_position;
 
   float previous_time = get_time();
   float current_time = 0.0f;
   float delta_time = 0.0f;
 
-  while (!glfwWindowShouldClose(window)) {
+  while (loop()) {
     current_time = get_time();
     delta_time = current_time - previous_time;
     previous_time = current_time;
 
     if (!warmup && get_time() - initialization_timer > 2.0f) {
       warmup = true;
-      initial_mouse_position = get_cursor_position();
+      set_initial_mouse_position();
     }
 
     if (!warmup) {
       goto draw;
     }
-
-#if EXIT_ON_INPUT
-
-    if (
-      is_any_mouse_button_pressed ||
-      is_any_key_pressed ||
-      is_mouse_moved(initial_mouse_position)
-    ) {
-      goto exit;
-    }
-
-#endif
 
     for (int ci = 0; ci < column_count - 3; ci++) {
       if (columns[ci].is_highlighting) {
@@ -654,14 +551,10 @@ main(
     }
 
     glFlush();
-
-    glfwSwapBuffers(window);
-    glfwPollEvents();
+    swap_buffers();
   }
 
-exit:
-  glfwDestroyWindow(window);
-  glfwTerminate();
+  terminate();
 
   return 0;
 }
@@ -1067,6 +960,160 @@ draw_bulk(
   glDeleteVertexArrays(1, &VAO);
   glDeleteBuffers(1, &VBO);
   glDeleteBuffers(1, &iVBO);
+}
+
+#include <GLFW/glfw3.h>
+
+#define FULLSCREEN 1
+#define EXIT_ON_INPUT 0
+
+GLFWwindow *window = NULL;
+
+bool is_any_key_pressed = false;
+bool is_any_mouse_button_pressed = false;
+struct vector2 initial_mouse_position;
+bool is_initial_mouse_position_set = false;
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
+void
+key_callback(
+  GLFWwindow* window,
+  int key,
+  int scancode,
+  int action,
+  int mods
+) {
+  is_any_key_pressed = true;
+}
+
+void
+mouse_button_callback(
+  GLFWwindow* window,
+  int button,
+  int action,
+  int mods
+) {
+  is_any_mouse_button_pressed = true;
+}
+
+#pragma GCC diagnostic pop
+
+struct vector2
+get_cursor_position(
+  void
+) {
+  double xpos, ypos;
+  glfwGetCursorPos(window, &xpos, &ypos);
+
+  return (struct vector2) { xpos, ypos };
+}
+
+void
+create_window(
+  void
+) {
+  glfwInit();
+
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+  GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+  const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
+  window =
+    glfwCreateWindow(
+      mode->width,
+      mode->height,
+      "1337 Screensaver",
+      FULLSCREEN ? monitor : NULL,
+      NULL
+    );
+
+  glfwMakeContextCurrent(window);
+  glfwSetKeyCallback(window, key_callback);
+  glfwSetMouseButtonCallback(window, mouse_button_callback);
+  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+
+  glfwSwapInterval(1);
+  glewInit();
+
+  glViewport(0, 0, mode->width, mode->height);
+
+  int width, height;
+  glfwGetWindowSize(window, &width, &height);
+
+  window_size = (struct window_size) { width, height };
+}
+
+bool
+is_mouse_moved(
+  const struct vector2 initial_position
+) {
+  if (!is_initial_mouse_position_set) {
+    return false;
+  }
+
+  const struct vector2 current_position = get_cursor_position();
+
+  return
+    current_position.x != initial_position.x ||
+    current_position.y != initial_position.y;
+}
+
+bool
+is_interrupted_by_input(
+  void
+) {
+#if EXIT_ON_INPUT == 1
+  return
+    is_any_mouse_button_pressed ||
+    is_any_key_pressed ||
+    is_mouse_moved(initial_mouse_position);
+#else
+  return false;
+#endif
+}
+
+bool
+loop(
+  void
+) {
+  if (glfwWindowShouldClose(window)) {
+    return false;
+  }
+
+  if (is_interrupted_by_input()) {
+    return false;
+  }
+
+  return true;
+}
+
+void
+swap_buffers(
+  void
+) {
+  glfwSwapBuffers(window);
+  glfwPollEvents();
+}
+
+void
+terminate(
+  void
+) {
+  glfwDestroyWindow(window);
+  glfwTerminate();
+}
+
+void
+set_initial_mouse_position(
+  void
+) {
+  initial_mouse_position = get_cursor_position();
+  is_initial_mouse_position_set = true;
 }
 
 #if defined(__cplusplus)
