@@ -66,7 +66,6 @@ struct column {
 
 const char chars[] = { '1', '3', '7' };
 
-
 struct window_size {
   int width;
   int height;
@@ -777,8 +776,8 @@ load_texture(
     data
   );
 
-  glEnable( GL_BLEND );
-  glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
   glGenerateMipmap(GL_TEXTURE_2D);
 
@@ -962,10 +961,156 @@ draw_bulk(
   glDeleteBuffers(1, &iVBO);
 }
 
+#if defined(X11)
+
+/*
+ *
+ * X11
+ *
+ * */
+
+#include <GLFW/glfw3native.h>
+#include <X11/Xlib.h>
+
+#include <X11/Xutil.h>
+#include <GL/gl.h>
+#include <GL/glx.h>
+
+#define GLFW_EXPOSE_NATIVE_X11
+#define GLFW_EXPOSE_NATIVE_GLX
+
+#define GLX_CONTEXT_MAJOR_VERSION_ARB 0x2091
+#define GLX_CONTEXT_MINOR_VERSION_ARB 0x2092
+
+#define DEBUG 0
+
+Window window;
+Display *display;
+GLXContext ctx;
+
+typedef GLXContext (*glXCreateContextAttribsARBProc)(
+  Display *, GLXFBConfig, GLXContext, bool, const int *
+);
+
+struct vector2
+get_cursor_position(
+  void
+) {
+  return (struct vector2) { 0.0f, 0.0f };
+}
+
+void
+create_window(
+  void
+) {
+  display = XOpenDisplay(NULL);
+
+  char *xwin = getenv("XSCREENSAVER_WINDOW");
+  window = strtol(xwin, NULL, 0);
+
+  XWindowAttributes wa;
+  XGetWindowAttributes(display, window, &wa);
+
+  static int visual_attributes[] = {
+    GLX_X_RENDERABLE, true,
+    GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
+    GLX_RENDER_TYPE, GLX_RGBA_BIT,
+    GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR,
+    GLX_RED_SIZE, 8,
+    GLX_GREEN_SIZE, 8,
+    GLX_BLUE_SIZE, 8,
+    GLX_ALPHA_SIZE, 8,
+    GLX_DEPTH_SIZE, 24,
+    GLX_STENCIL_SIZE, 8,
+    GLX_DOUBLEBUFFER, true,
+    None
+  };
+
+  int fbcount;
+
+  GLXFBConfig *fbc =
+    glXChooseFBConfig(
+      display,
+      DefaultScreen(display),
+      visual_attributes,
+      &fbcount
+    );
+
+  glXCreateContextAttribsARBProc glXCreateContextAttribsARB =
+    (glXCreateContextAttribsARBProc) glXGetProcAddress(
+        (const GLubyte *) "glXCreateContextAttribsARB"
+      );
+
+  int context_attributes[] = {
+    GLX_CONTEXT_MAJOR_VERSION_ARB, 4,
+    GLX_CONTEXT_MINOR_VERSION_ARB, 6,
+    None
+  };
+
+  ctx = glXCreateContextAttribsARB(
+    display,
+    fbc[0],
+    NULL,
+    true,
+    context_attributes
+  );
+
+  XSync(display, false);
+  glXMakeCurrent(display, window, ctx);
+  XFree(fbc);
+
+  glewInit();
+  glViewport(0, 0, wa.width, wa.height);
+
+  window_size = (struct window_size) { wa.width, wa.height };
+}
+
+bool
+loop(
+  void
+) {
+  return true;
+}
+
+void
+swap_buffers(
+  void
+) {
+  glXSwapBuffers(display, window);
+}
+
+void
+terminate(
+  void
+) {
+  glXMakeCurrent(display, None, NULL);
+  glXDestroyContext(display, ctx);
+
+  XDestroyWindow(display, window);
+  XCloseDisplay(display);
+
+  exit(0);
+}
+
+void
+set_initial_mouse_position(
+  void
+) {
+
+}
+
+#else
+
+/*
+ *
+ * GLFW
+ *
+ * */
+
 #include <GLFW/glfw3.h>
 
 #define FULLSCREEN 1
-#define EXIT_ON_INPUT 0
+#define EXIT_ON_INPUT 1
 
 GLFWwindow *window = NULL;
 
@@ -1115,6 +1260,7 @@ set_initial_mouse_position(
   initial_mouse_position = get_cursor_position();
   is_initial_mouse_position_set = true;
 }
+#endif
 
 #if defined(__cplusplus)
 }
