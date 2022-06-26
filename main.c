@@ -4,6 +4,8 @@
 #include <math.h>
 #include <time.h>
 
+#define GLEW_STATIC
+
 #include <GL/glew.h>
 #include <cglm/cglm.h>
 
@@ -675,7 +677,13 @@ draw_rectangle(
     transform
   );
 
-  glUniformMatrix4fv(1, 1, GL_FALSE, transform[0]);
+  unsigned int transform_location =
+    glGetUniformLocation(
+      rect_shader_id,
+      "transform"
+    );
+
+  glUniformMatrix4fv(transform_location, 1, GL_FALSE, transform[0]);
 
   float vertices[] = {
     x, y,
@@ -836,7 +844,13 @@ draw_bulk(
     transform
   );
 
-  glUniformMatrix4fv(4, 1, GL_FALSE, transform[0]);
+  unsigned int transform_location =
+    glGetUniformLocation(
+      char_shader_id,
+      "transform"
+    );
+
+  glUniformMatrix4fv(transform_location, 1, GL_FALSE, transform[0]);
 
   float v[column_count * row_count][4];
 
@@ -969,15 +983,11 @@ draw_bulk(
  *
  * */
 
-#include <GLFW/glfw3native.h>
 #include <X11/Xlib.h>
-
 #include <X11/Xutil.h>
+
 #include <GL/gl.h>
 #include <GL/glx.h>
-
-#define GLFW_EXPOSE_NATIVE_X11
-#define GLFW_EXPOSE_NATIVE_GLX
 
 #define GLX_CONTEXT_MAJOR_VERSION_ARB 0x2091
 #define GLX_CONTEXT_MINOR_VERSION_ARB 0x2092
@@ -988,7 +998,7 @@ Window window;
 Display *display;
 GLXContext ctx;
 
-typedef GLXContext (*glXCreateContextAttribsARBProc)(
+typedef GLXContext(*glXCreateContextAttribsARBProc)(
   Display *, GLXFBConfig, GLXContext, bool, const int *
 );
 
@@ -1003,9 +1013,9 @@ void
 create_window(
   void
 ) {
-  display = XOpenDisplay(NULL);
-
   char *xwin = getenv("XSCREENSAVER_WINDOW");
+
+  display = XOpenDisplay(getenv("DISPLAY"));
   window = strtol(xwin, NULL, 0);
 
   XWindowAttributes wa;
@@ -1042,8 +1052,8 @@ create_window(
       );
 
   int context_attributes[] = {
-    GLX_CONTEXT_MAJOR_VERSION_ARB, 4,
-    GLX_CONTEXT_MINOR_VERSION_ARB, 6,
+    GLX_CONTEXT_MAJOR_VERSION_ARB, 3,
+    GLX_CONTEXT_MINOR_VERSION_ARB, 3,
     None
   };
 
@@ -1161,8 +1171,8 @@ create_window(
 ) {
   glfwInit();
 
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
   GLFWmonitor* monitor = glfwGetPrimaryMonitor();
