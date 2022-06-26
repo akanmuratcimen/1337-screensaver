@@ -10,4 +10,20 @@
 - Soon
 
 ## GNU/Linux
-- Soon
+##### For Debian based distributions
+
+- Run the following commands.
+
+```shell
+$ sudo apt -y install xscreensaver
+$ wget -q https://github.com/akanmuratcimen/1337-screensaver/releases/download/v1.0.0/1337
+$ sudo chmod +x 1337
+$ sudo mv 1337 /usr/libexec/xscreensaver/
+```
+
+- Open and close XScreenSaver application to generate .xscreensaver file in the user's directory.
+- Open .xcscreensaver file with a text editor and add '- 1337 -root \n\' to the end of the list of screensavers.
+- Reopen XScreenSaver application.
+- Select 'Only One Screen Saver' mode.
+- Select 1337 from the screen savers list.
+

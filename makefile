@@ -1,5 +1,5 @@
 CC := gcc
-CFLAGS := -Wall -Wextra -std=gnu11 -pedantic -O0 -g -fdiagnostics-color=always
+CFLAGS := -Wall -Wextra -std=gnu11 -pedantic -O3 -g -fdiagnostics-color=always
 LIBSX11 := -lGL -lm -lpthread -ldl -lrt -lX11 -lglut -l:libGLEW.a -lglfw -lglfw3 -I cglm/include -L cglm/build -lcglm
 LIBSX112 := -lGL -lm -lX11 -l:libGLEW.a -I cglm/include -L cglm/build -lcglm
 LIBSW32 := -lopengl32 -lgdi32 -lwinmm -mwindows -lwinpthread --static
