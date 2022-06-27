@@ -26,4 +26,5 @@ $ sudo mv 1337 /usr/libexec/xscreensaver/
 - Reopen XScreenSaver application.
 - Select 'Only One Screen Saver' mode.
 - Select 1337 from the screen savers list.
+- Set the 'Cycle After' value to 0.
 
